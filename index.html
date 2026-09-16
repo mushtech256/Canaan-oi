@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CANAAN OI - Invest, Mine & Earn</title>
+  
+  <!-- SEO Meta Tags for Google Indexing & Previews -->
+  <meta name="description" content="Canaan OI is a premier mining investment platform where users can invest, rent hardware machines, and earn secure daily returns.">
+  <meta name="keywords" content="Canaan OI, mining investment platform, Uganda online investment, crypto mining, digital assets">
+  <meta property="og:title" content="CANAAN OI - Invest, Mine & Earn">
+  <meta property="og:description" content="Canaan OI is a trusted mining investment platform offering high-yield hardware machines and daily passive income.">
+  <meta property="og:image" content="https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png">
+  <meta property="og:type" content="website">
+
+  <!-- Firebase App (Modular CDN v10) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBGy98JNl66ViuT7Q4K_uPYKBrZNE0WxR0",
+      authDomain: "canaan-oi.firebaseapp.com",
+      projectId: "canaan-oi",
+      storageBucket: "canaan-oi.firebasestorage.app",
+      messagingSenderId: "818655797480",
+      appId: "1:818655797480:web:78f3dcf9945ebb918e295d"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.firebaseAuth = auth;
+    window.firebaseDb = db;
+    window.firebaseFns = {
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged,
+      sendPasswordResetEmail,
+      updatePassword,
+      doc,
+      setDoc,
+      getDoc,
+      updateDoc,
+      collection,
+      query,
+      where,
+      getDocs,
+      addDoc,
+      increment,
+      arrayUnion
+    };
+  </script>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --text: #f8fafc;
+      --mut: #94a3b8;
+      --border: #334155;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --admin-badge: #8b5cf6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 80px; -webkit-font-smoothing: antialiased; }
+    
+    #authContainer { padding: 24px; max-width: 420px; margin: 50px auto; background: var(--card); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
+    .auth-tabs { display: flex; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .auth-tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; color: var(--mut); font-weight: 600; font-size: 13px; transition: all 0.2s ease; }
+    .auth-tab.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+    
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; color: var(--mut); margin-bottom: 6px; font-weight: 500; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+    
+    .btn { background: var(--accent); color: #0f172a; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; display: inline-block; font-size: 13px; transition: background 0.2s; }
+    .btn:hover { background: var(--accent-hover); }
+    
+    #appContainer { display: none; max-width: 500px; margin: 0 auto; }
+    .header { background: var(--card); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 90; }
+    
+    .view { display: none; padding: 16px; }
+    .view.active { display: block; }
+    
+    nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); display: flex; border-top: 1px solid var(--border); padding: 10px 0; z-index: 100; max-width: 500px; margin: 0 auto; }
+    .nav-i { text-align: center; color: var(--mut); font-size: 11px; cursor: pointer; flex: 1; font-weight: 500; transition: color 0.2s; }
+    .nav-i.active { color: var(--accent); }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); justify-content: center; align-items: center; z-index: 200; padding: 16px; backdrop-filter: blur(4px); }
+    .modal-content { background: var(--card); padding: 24px; border-radius: 14px; width: 100%; max-width: 380px; border: 1px solid var(--border); max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+
+    .quick-select-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .quick-pill { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 4px; text-align: center; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .quick-pill:hover, .quick-pill.active { border-color: var(--accent); color: var(--accent); background: rgba(16, 185, 129, 0.05); }
+
+    .network-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+    .network-card { background: var(--bg); border: 2px solid var(--border); padding: 12px; border-radius: 8px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text); transition: all 0.2s; }
+    .network-card.active { border-color: var(--accent); color: var(--accent); background: rgba(16, 185, 129, 0.05); }
+
+    .wave-container {
+      position: relative; width: 100%; height: 140px; margin-top: 16px;
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+      border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
+    }
+    .wave-svg { position: absolute; bottom: 0; left: 0; width: 200%; height: 100%; animation: waveMove 6s linear infinite; }
+    @keyframes waveMove { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+  </style>
+</head>
+<body>
+
+  <!-- AUTHENTICATION CONTAINER -->
+  <div id="authContainer">
+    <div style="text-align: center; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: center; margin-bottom: 8px;">
+        <img src="https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png" alt="Canaan OI Logo" style="width: 42px; height: 42px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border);">
+      </div>
+      <h2 style="font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 4px;">CANAAN OI</h2>
+      <p style="font-size: 11px; color: var(--mut);">Mining Investment Platform - Invest & Earn</p>
+    </div>
+
+    <div class="auth-tabs">
+      <div id="tabLoginBtn" class="auth-tab active" onclick="switchAuthTab('login')">Login</div>
+      <div id="tabRegBtn" class="auth-tab" onclick="switchAuthTab('register')">Register</div>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Phone Number (Starts with 07, 10 digits)</label>
+        <input type="tel" id="loginPhone" placeholder="07XXXXXXXX" pattern="07[0-9]{8}" maxlength="10" required>
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 8px;">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" required>
+      </div>
+
+      <div style="text-align: right; margin-bottom: 16px;">
+        <span style="font-size: 11px; color: var(--accent); cursor: pointer; font-weight: 500;" onclick="openModal('forgotPasswordModal')">Forgot Password?</span>
+      </div>
+
+      <button type="submit" class="btn" style="margin-bottom: 12px;">Log In</button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="registerForm" onsubmit="handleRegister(event)" style="display:none;">
+      <div id="refBanner" style="display:none; background: rgba(16,185,129,0.1); border: 1px solid var(--accent); color: var(--accent); padding: 8px; border-radius: 6px; font-size: 11px; margin-bottom: 12px; text-align: center;"></div>
+      
+      <div class="form-group">
+        <label>Phone Number (Starts with 07, 10 digits)</label>
+        <input type="tel" id="regPhone" placeholder="07XXXXXXXX" pattern="07[0-9]{8}" maxlength="10" required>
+      </div>
+
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="regEmail" placeholder="user@example.com" required>
+      </div>
+
+      <div class="form-group">
+        <label>Create Password</label>
+        <input type="password" id="regPassword" placeholder="••••••••" minlength="6" required>
+      </div>
+
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="regConfirmPassword" placeholder="••••••••" minlength="6" required>
+      </div>
+
+      <button type="submit" class="btn">Register Account</button>
+    </form>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="appContainer">
+    <div class="header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <img src="https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png" alt="Logo" style="width: 36px; height: 36px; object-fit: contain; border-radius: 6px; border: 1px solid var(--border);">
+        <div>
+          <div style="font-weight: 800; font-size: 14px; letter-spacing: 0.5px;">CANAAN OI</div>
+          <div style="font-size: 10px; color: var(--mut);">Invest, Mine & Earn</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span id="userVipTier" style="font-size: 10px; background: var(--border); padding: 3px 8px; border-radius: 6px; font-weight: 600;">None</span>
+        <span id="userBalanceHeader" style="font-size: 13px; font-weight: 700; color: var(--accent);">UGX 5,000</span>
+      </div>
+    </div>
+
+    <!-- HOME VIEW -->
+    <div id="v-home" class="view active">
+      <!-- Broadcast Notice Banner -->
+      <div id="broadcastBanner" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); padding: 10px; border-radius: 8px; margin-bottom: 14px; font-size: 11px; color: var(--warning); cursor: pointer;" onclick="openModal('announcementModal')">
+        <b>📢 Admin Announcement:</b> <span id="broadcastText"></span> (Tap to view all)
+      </div>
+
+      <div style="background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px;">
+        <div style="font-size: 12px; color: var(--mut); font-weight: 500;">Total Wallet Balance</div>
+        <div class="userBalanceEl" style="font-size: 24px; font-weight: 800; color: var(--accent); margin: 6px 0 16px 0;">UGX 5,000</div>
+        <div style="display: flex; gap: 12px;">
+          <button class="btn" onclick="openDepositModal()">Deposit Funds</button>
+          <button class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--text);" onclick="openModal('withdrawModal')">Withdraw</button>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px;">
+        <div style="background: var(--card); padding: 14px 10px; border-radius: 10px; text-align: center; border: 1px solid var(--border); cursor: pointer;" onclick="goTo('machines')">
+          <div style="font-size: 16px; margin-bottom: 4px;">⚡</div>
+          <div style="font-size: 11px; font-weight: 600;">Machines</div>
+        </div>
+        <div style="background: var(--card); padding: 14px 10px; border-radius: 10px; text-align: center; border: 1px solid var(--border); cursor: pointer;" onclick="openModal('vipTaskModal')">
+          <div style="font-size: 16px; margin-bottom: 4px;">🏆</div>
+          <div style="font-size: 11px; font-weight: 600;">VIP Task</div>
+        </div>
+        <div style="background: var(--card); padding: 14px 10px; border-radius: 10px; text-align: center; border: 1px solid var(--border); cursor: pointer;" onclick="claimDailyReward()">
+          <div style="font-size: 16px; margin-bottom: 4px;">🎁</div>
+          <div style="font-size: 11px; font-weight: 600;">Daily Bonus</div>
+        </div>
+      </div>
+
+      <!-- Manager & Download App Buttons -->
+      <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+        <a href="https://wa.me/447456089196" target="_blank" class="btn" style="background: #25D366; color: #fff; flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          👤 Manager Support
+        </a>
+        <a href="#" target="_blank" class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--text); flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          📥 Download App
+        </a>
+      </div>
+
+      <div style="background: var(--card); padding: 14px; border-radius: 10px; border: 1px solid var(--border); text-align: center; cursor: pointer; margin-bottom: 16px;" onclick="goTo('referrals')">
+        <div style="font-weight: 700; font-size: 13px; margin-bottom: 2px;">Invite Team Members 👥</div>
+        <div style="font-size: 11px; color: var(--mut);">Grow your network & unlock VIP tier requirements</div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+        <a href="https://chat.whatsapp.com/J8WonMtmqgW6ljsV5fI3l5?s=cl&p=a&mlu=4&ilr=4" target="_blank" class="btn" style="background: #25D366; color: #fff; flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          💬 WhatsApp Group
+        </a>
+        <a href="https://t.me/+s63xqIYPEdo5ZGI0" target="_blank" class="btn" style="background: #0088cc; color: #fff; flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          ✈️ Telegram Channel
+        </a>
+      </div>
+
+      <div class="wave-container">
+        <svg class="wave-svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.4" />
+              <stop offset="50%" stop-color="#1d4ed8" stop-opacity="0.7" />
+              <stop offset="100%" stop-color="#60a5fa" stop-opacity="0.5" />
+            </linearGradient>
+          </defs>
+          <path d="M0,30 C150,90 350,-20 500,40 C650,100 900,10 1200,50 L1200,120 L0,120 Z" fill="url(#waveGrad)"></path>
+          <path d="M0,60 C200,20 400,90 600,50 C800,10 1000,80 1200,40 L1200,120 L0,120 Z" fill="#3b82f6" fill-opacity="0.25"></path>
+        </svg>
+      </div>
+    </div>
+
+    <!-- MACHINES VIEW -->
+    <div id="v-machines" class="view">
+      <div style="font-weight: 800; font-size: 15px; margin-bottom: 4px;">Hardware Catalog</div>
+      <div style="font-size: 11px; color: var(--mut); margin-bottom: 12px; line-height: 1.4;">Only the 1st machine of non-VIP series allows up to 2 active purchases. Others and VIP machines allow 1 active purchase. Machines can be re-purchased once their cycle ends. VIP machines require specific team investor counts.</div>
+      
+      <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px;">
+        <button id="btnSeriesALL" class="btn" style="padding: 6px 14px; font-size: 11px; width: auto;" onclick="setSeries('ALL')">ALL</button>
+        <button id="btnSeriesB" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('B')">B-SERIES</button>
+        <button id="btnSeriesR" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('R')">R-SERIES</button>
+        <button id="btnSeriesK" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('K')">K-SERIES</button>
+        <button id="btnSeriesJ" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('J')">J-SERIES</button>
+        <button id="btnSeriesVIP" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('VIP')">VIP</button>
+      </div>
+      
+      <div id="machinesGrid" style="display: flex; flex-direction: column; gap: 12px;"></div>
+    </div>
+
+    <!-- TEAM VIEW -->
+    <div id="v-referrals" class="view">
+      <div style="font-weight: 800; font-size: 15px; margin-bottom: 12px;">My Team & Referrals</div>
+      <div style="background: var(--card); padding: 16px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 12px; display: flex; align-items: center; gap: 14px;">
+        <div style="width: 48px; height: 48px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); flex-shrink: 0;">
+          <img src="https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+        </div>
+        <div>
+          <div style="font-size: 11px; color: var(--mut); margin-bottom: 2px; font-weight: 500;">Total Team Members</div>
+          <div id="teamMembersCount" style="font-size: 20px; font-weight: 800; color: var(--accent);">0</div>
+        </div>
+      </div>
+      <div style="background: var(--card); padding: 16px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 12px;">
+        <div style="font-size: 11px; color: var(--mut); margin-bottom: 6px; font-weight: 500;">Your Unique Invitation Link</div>
+        <input type="text" id="refLinkText" readonly style="width: 100%; padding: 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-size: 11px; border-radius: 6px; margin-bottom: 10px;">
+        <button class="btn" style="padding: 8px; font-size: 12px;" onclick="copyRefLink()">Copy Link</button>
+      </div>
+    </div>
+
+    <!-- RECORDS VIEW -->
+    <div id="v-records" class="view">
+      <div style="display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto;">
+        <button id="rtab-deposits" class="btn" style="padding: 6px 12px; font-size: 11px; width: auto;" onclick="switchRecordTab('deposits')">Deposits</button>
+        <button id="rtab-withdrawals" class="btn" style="background:var(--card); color:var(--text); border:1px solid var(--border); padding: 6px 12px; font-size: 11px; width: auto;" onclick="switchRecordTab('withdrawals')">Withdrawals</button>
+        <button id="rtab-investments" class="btn" style="background:var(--card); color:var(--text); border:1px solid var(--border); padding: 6px 12px; font-size: 11px; width: auto;" onclick="switchRecordTab('investments')">History</button>
+         <button id="rtab-active" class="btn" style="background:var(--card); color:var(--text); border:1px solid var(--border); padding: 6px 12px; font-size: 11px; width: auto;" onclick="switchRecordTab('active')">Active Machines</button>
+      </div>
+      <div id="recordsContainer"></div>
+    </div>
+
+    <!-- PROFILE VIEW -->
+    <div id="v-profile" class="view">
+      <div style="font-weight: 800; font-size: 15px; margin-bottom: 12px;">Account Profile</div>
+      
+      <!-- Admin Panel Access Button -->
+      <button id="adminPortalBtn" class="btn" style="background: var(--admin-badge); color: #fff; margin-bottom: 14px; display: none;" onclick="openModal('adminModal')">
+        🛠️ Open Admin Control Dashboard
+      </button>
+
+      <!-- Apology Request Option for Banned Users -->
+      <div id="apologySection" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); padding: 14px; border-radius: 10px; margin-bottom: 14px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--danger); margin-bottom: 6px;">🚨 Your account is currently banned</div>
+        <div style="font-size: 11px; color: var(--mut); margin-bottom: 10px;">Submit an apology message to the admin requesting to unban your account.</div>
+        <div class="form-group" style="margin-bottom: 8px;">
+          <textarea id="userApologyInput" rows="2" placeholder="Write your apology message here..."></textarea>
+        </div>
+        <button class="btn" style="background: var(--danger); color: #fff; padding: 8px;" onclick="submitUserApology()">Submit Apology Request</button>
+      </div>
+
+      <div style="background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px;">
+        <div style="font-size: 11px; color: var(--mut); margin-bottom: 2px;">Phone Number:</div>
+        <div id="profileUsername" style="font-size: 14px; font-weight: 700; margin-bottom: 14px;">-</div>
+        <button class="btn" style="background: var(--danger); color: #fff;" onclick="logout()">Log Out of Account</button>
+      </div>
+    </div>
+
+    <!-- NAVIGATION BAR -->
+    <nav>
+      <div class="nav-i active" onclick="goTo('home')">Home</div>
+      <div class="nav-i" onclick="goTo('machines')">Machines</div>
+      <div class="nav-i" onclick="goTo('referrals')">Team</div>
+      <div class="nav-i" onclick="goTo('records')">Records</div>
+      <div class="nav-i" onclick="goTo('profile')">Profile</div>
+    </nav>
+  </div>
+
+  <!-- ADMIN PANEL MODAL -->
+  <div id="adminModal" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+      <div style="font-weight: 800; font-size: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--admin-badge);">
+        <span>🛠️ Admin Control Dashboard</span>
+        <span style="font-size: 13px; cursor: pointer; color: var(--mut);" onclick="closeModal('adminModal')">✕</span>
+      </div>
+
+      <!-- Quick Platform Statistics -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
+        <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+          <div style="font-size: 10px; color: var(--mut);">Total Users</div>
+          <div id="adminStatTotalUsers" style="font-size: 16px; font-weight: 800; color: var(--text);">0</div>
+        </div>
+        <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center; cursor: pointer;" onclick="openModal('adminActiveUsersModal')">
+          <div style="font-size: 10px; color: var(--accent);">Active Users 🔍</div>
+          <div id="adminStatActiveUsers" style="font-size: 16px; font-weight: 800; color: var(--accent);">0</div>
+        </div>
+        <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center; cursor: pointer;" onclick="openModal('adminDormantUsersModal')">
+          <div style="font-size: 10px; color: var(--warning);">Dormant 🔍</div>
+          <div id="adminStatDormantUsers" style="font-size: 16px; font-weight: 800; color: var(--warning);">0</div>
+        </div>
+      </div>
+
+      <!-- Financial Totals Summary Cards -->
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
+        <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+          <div style="font-size: 10px; color: var(--mut);">Total Deposited</div>
+          <div id="adminStatTotalDeposits" style="font-size: 13px; font-weight: 800; color: var(--accent);">UGX 0</div>
+          <div style="font-size: 9px; color: var(--mut); margin-top:2px;">Weekly: <span id="adminStatWeeklyDeposits">UGX 0</span></div>
+        </div>
+        <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+          <div style="font-size: 10px; color: var(--mut);">Total Withdrawn</div>
+          <div id="adminStatTotalWithdrawals" style="font-size: 13px; font-weight: 800; color: var(--danger);">UGX 0</div>
+          <div style="font-size: 9px; color: var(--mut); margin-top:2px;">Weekly: <span id="adminStatWeeklyWithdrawals">UGX 0</span></div>
+        </div>
+      </div>
+
+      <!-- User Ban Management Tool -->
+      <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;">
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">🔒 User Ban & Account Control</div>
+        <div class="form-group" style="margin-bottom: 8px;">
+          <input type="tel" id="adminBanPhoneInput" placeholder="Enter phone number (07XXXXXXXX)" maxlength="10">
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" style="background: var(--warning); color: #000; padding: 8px; font-size: 11px; flex: 1;" onclick="adminCheckUserStatus()">Check Status</button>
+          <button class="btn" style="background: var(--danger); color: #fff; padding: 8px; font-size: 11px; flex: 1;" onclick="adminBanUserAction()">Ban Account</button>
+        </div>
+        <div id="adminUserLookupResult" style="font-size: 11px; color: var(--mut); margin-top: 8px;"></div>
+      </div>
+
+      <!-- Apology Requests Queue for Banned Users -->
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📨 Banned Accounts Apology Requests</div>
+        <div id="adminApologyQueue" style="max-height: 140px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
+          <div style="font-size: 11px; color: var(--mut); text-align: center; padding: 10px;">Loading requests...</div>
+        </div>
+      </div>
+
+      <!-- Platform Deposits Log Viewer -->
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">💵 Platform User Deposits Log</div>
+        <button class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--accent); padding: 8px; font-size: 11px; margin-bottom: 6px;" onclick="openModal('adminAllDepositsModal')">View All Deposits Made By Users →</button>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📋 Pending Withdrawal Approvals</div>
+        <div id="adminWithdrawalsQueue" style="max-height: 140px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
+          <div style="font-size: 11px; color: var(--mut); text-align: center; padding: 10px;">Loading queue...</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📢 Broadcast Platform Announcement</div>
+        <div class="form-group" style="margin-bottom: 8px;">
+          <textarea id="adminBroadcastInput" rows="2" placeholder="Type announcement text for all users..."></textarea>
+        </div>
+        <button class="btn" style="background: var(--admin-badge); color: #fff; padding: 10px;" onclick="adminSendBroadcast()">Send Broadcast</button>
+      </div>
+
+      <button class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--text);" onclick="closeModal('adminModal')">Close Panel</button>
+    </div>
+  </div>
+
+  <!-- ADMIN ACTIVE USERS MODAL -->
+  <div id="adminActiveUsersModal" class="modal">
+    <div class="modal-content" style="max-width: 420px;">
+      <div style="font-weight: 800; font-size: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--accent);">
+        <span>⚡ Active Users Details</span>
+        <span style="font-size: 13px; cursor: pointer; color: var(--mut);" onclick="closeModal('adminActiveUsersModal')">✕</span>
+      </div>
+      <div id="adminActiveUsersList" style="max-height: 320px; overflow-y: auto;"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN DORMANT USERS MODAL -->
+  <div id="adminDormantUsersModal" class="modal">
+    <div class="modal-content" style="max-width: 420px;">
+      <div style="font-weight: 800; font-size: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--warning);">
+        <span>💤 Dormant Users Details</span>
+        <span style="font-size: 13px; cursor: pointer; color: var(--mut);" onclick="closeModal('adminDormantUsersModal')">✕</span>
+      </div>
+      <div id="adminDormantUsersList" style="max-height: 320px; overflow-y: auto;"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN ALL DEPOSITS MODAL -->
+  <div id="adminAllDepositsModal" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+      <div style="font-weight: 800; font-size: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--accent);">
+        <span>💵 All Platform Deposits</span>
+        <span style="font-size: 13px; cursor: pointer; color: var(--mut);" onclick="closeModal('adminAllDepositsModal')">✕</span>
+      </div>
+      <div id="adminAllDepositsList" style="max-height: 340px; overflow-y: auto;"></div>
+    </div>
+  </div>
+
+  <!-- ANNOUNCEMENTS MODAL -->
+  <div id="announcementModal" class="modal">
+    <div class="modal-content">
+      <div style="font-weight: 800; font-size: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <span>📢 Platform Announcements</span>
+        <span style="font-size: 13px; cursor: pointer; color: var(--mut);" onclick="closeModal('announcementModal')">✕</span>
+      </div>
+      <div id="announcementListContainer" style="max-height: 300px; overflow-y: auto;"></div>
+    </div>
+  </div>
+
+  <!-- MACHINE DETAILS MODAL -->
+  <div id="machineDetailModal" class="modal">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+        <span id="detModalTitle" style="font-weight: 800; font-size: 14px;">Machine Details</span>
+        <span style="font-size: 13px; cursor: pointer; color: var(--mut);" onclick="closeModal('machineDetailModal')">✕</span>
+      </div>
+      <div style="text-align: center; margin-bottom: 12px;">
+        <img id="detModalImg" src="" alt="Machine" style="width: 140px; height: 110px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);">
+      </div>
+      <div style="background: var(--bg); padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 11px; margin-bottom: 16px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+          <span style="color:var(--mut);">Rental Price:</span>
+          <span id="detModalPrice" style="font-weight:700; color:var(--text);">UGX 0</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+          <span style="color:var(--mut);">Daily Yield:</span>
+          <span id="detModalDaily" style="font-weight:700; color:var(--accent);">UGX 0</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+          <span style="color:var(--mut);">Cycle Duration:</span>
+          <span id="detModalDuration" style="font-weight:700; color:var(--text);">0 Days</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom: 6px;">
+          <span style="color:var(--mut);">Total Income:</span>
+          <span id="detModalTotal" style="font-weight:800; color:var(--accent);">UGX 0</span>
+        </div>
+      </div>
+      <button id="detModalRentBtn" class="btn" style="margin-bottom: 8px;">Rent This Machine</button>
+      <button class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--text);" onclick="closeModal('machineDetailModal')">Back to Catalog</button>
+    </div>
+  </div>
+
+  <!-- FORGOT PASSWORD MODAL -->
+  <div id="forgotPasswordModal" class="modal">
+    <div class="modal-content">
+      <div style="font-weight: 800; font-size: 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <span>Reset Password</span>
+        <span style="font-size: 11px; cursor: pointer; color: var(--mut);" onclick="closeModal('forgotPasswordModal')">✕</span>
+      </div>
+
+      <div id="resetStep1">
+        <div style="font-size: 11px; color: var(--mut); margin-bottom: 12px; line-height: 1.4;">
+          Enter your registered phone number to look up your account.
+        </div>
+        <div class="form-group">
+          <label>Phone Number (07XXXXXXXX)</label>
+          <input type="tel" id="resetPhone" placeholder="07XXXXXXXX" pattern="07[0-9]{8}" maxlength="10">
+        </div>
+        <button class="btn" style="margin-bottom: 8px;" onclick="handleLookupResetAccount()">Verify Phone Number</button>
+      </div>
+
+      <div id="resetStep2" style="display: none;">
+        <div style="font-size: 11px; color: var(--accent); margin-bottom: 12px; line-height: 1.4;">
+          ✅ Account found! Enter your new secure password below.
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="newResetPassword" placeholder="••••••••" minlength="6">
+        </div>
+        <button class="btn" style="margin-bottom: 8px;" onclick="handleConfirmNewPassword()">Update Password</button>
+      </div>
+      
+      <button class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--text); margin-top: 4px;" onclick="closeModal('forgotPasswordModal')">Cancel</button>
+    </div>
+  </div>
+  
+
+  <!-- WITHDRAW MODAL -->
+  <div id="withdrawModal" class="modal">
+    <div class="modal-content">
+      <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">Withdraw Funds</div>
+      <div style="font-size: 11px; color: var(--warning); margin-bottom: 12px; line-height: 1.4;">⚠️ Note: Minimum withdrawal is strictly UGX 5,000. A 10% network/service fee applies automatically.</div>
+      <div class="form-group">
+        <label>Enter Amount (UGX):</label>
+        <input type="number" id="withdrawAmt" placeholder="0" oninput="calculateWithdrawFee()">
+      </div>
+      <div id="withdrawFeeCalc" style="font-size: 11px; color: var(--mut); margin-bottom: 14px; display:none;"></div>
+      <button class="btn" style="margin-bottom: 8px;" onclick="confirmWithdraw()">Request Withdrawal</button>
+      <button class="btn" style="background:var(--card); border:1px solid var(--border); color:var(--text);" onclick="closeModal('withdrawModal')">Cancel</button>
+    </div>
+  </div>
+
+  <!-- DEPOSIT MODAL (VIEW A & VIEW B FLOW) -->
+  <div id="depositModal" class="modal">
+    <div class="modal-content">
+      <div style="font-weight: 800; font-size: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <span id="depositModalTitle">Deposit Funds - Step 1</span>
+        <span style="font-size: 11px; cursor: pointer; color: var(--mut);" onclick="closeModal('depositModal')">✕</span>
+      </div>
+
+      <!-- VIEW A: Initial Number & Amount Input -->
+      <div id="depositViewA">
+        <div style="font-size: 11px; font-weight: 600; color: var(--mut); margin-bottom: 8px;">Select Mobile Network:</div>
+        <div class="network-grid">
+          <div id="netAirtel" class="network-card active" onclick="selectDepositNetwork('Airtel')">Airtel Money</div>
+          <div id="netMTN" class="network-card" onclick="selectDepositNetwork('MTN')">MTN MoMo</div>
+        </div>
+
+        <div style="font-size: 11px; font-weight: 600; color: var(--mut); margin-bottom: 8px;">Quick Select Amount:</div>
+        <div class="quick-select-grid">
+          <div class="quick-pill" onclick="selectQuickDeposit(10000)">10,000</div>
+          <div class="quick-pill" onclick="selectQuickDeposit(20000)">20,000</div>
+          <div class="quick-pill" onclick="selectQuickDeposit(50000)">50,000</div>
+          <div class="quick-pill" onclick="selectQuickDeposit(100000)">100,000</div>
+          <div class="quick-pill" onclick="selectQuickDeposit(200000)">200,000</div>
+          <div class="quick-pill" onclick="selectQuickDeposit(500000)">500,000</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label>Your Phone Number (07XXXXXXXX)</label>
+          <input type="tel" id="depositPhoneInput" placeholder="07XXXXXXXX" pattern="07[0-9]{8}" maxlength="10">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label>Deposit Amount (UGX):</label>
+          <input type="number" id="depositAmt" placeholder="0">
+        </div>
+
+        <button class="btn" style="margin-bottom: 8px;" onclick="proceedToDepositSummary()">Confirm & Continue →</button>
+        <button class="btn" style="background:var(--card); border:1px solid var(--border); color:var(--text);" onclick="closeModal('depositModal')">Cancel</button>
+      </div>
+
+      <!-- VIEW B: Copy & Pay Summary Screen -->
+      <div id="depositViewB" style="display: none;">
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 11px; line-height: 1.5;">
+          <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px;">📌 Payment Instructions:</div>
+          Transfer the exact amount to our official merchant collection number below via mobile money, then click Refresh/Verify.
+        </div>
+
+        <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 11px; margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: var(--mut);">Total Amount:</span>
+            <span id="summaryDisplayAmt" style="color: var(--accent); font-weight: 800; font-size: 13px;">UGX 0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span style="color: var(--mut);">Network:</span>
+            <span id="summaryDisplayNetwork" style="color: var(--text); font-weight: 700;">Airtel</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-top: 1px solid var(--border); padding-top: 8px;">
+            <div>
+              <span style="color: var(--mut); display: block;">Collection Number:</span>
+              <span id="summaryMerchantNumber" style="color: var(--text); font-weight: 700; font-size: 12px;">0795160094</span>
+            </div>
+            <button class="btn" style="width: auto; padding: 6px 12px; font-size: 11px;" onclick="copyMerchantNumber()">Copy Number</button>
+          </div>
+          <div style="margin-top: 6px;">
+            <span style="color: var(--mut);">Account Name:</span>
+            <span id="summaryMerchantName" style="color: var(--text); font-weight: 700; display: block;">JOSEPH BYABASAIJA</span>
+          </div>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); padding: 10px; border-radius: 8px; font-size: 11px; color: var(--warning); margin-bottom: 14px; text-align: center;">
+          <b>Payment completed?</b> Click 'Verify & Refresh Balance' below once transferred.
+        </div>
+
+        <div id="ussdGuideText" style="font-size: 10px; color: var(--mut); text-align: center; margin-bottom: 12px;">
+          💡 Dial *185# (Airtel) or *165# (MTN) to send money to the collection number above.
+        </div>
+
+        <button class="btn" style="margin-bottom: 8px;" onclick="verifyAndCreditDeposit()">Verify & Refresh Balance</button>
+        <button class="btn" style="background:var(--card); border:1px solid var(--border); color:var(--text);" onclick="backToDepositViewA()">← Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION SCRIPT -->
+  <script>
+    const milestones = [
+      { target: 3, reward: 15000, level: 'VIP 1' },
+      { target: 10, reward: 30000, level: 'VIP 2' },
+      { target: 20, reward: 100000, level: 'VIP 3' },
+      { target: 50, reward: 200000, level: 'VIP 4' }
+    ];
+
+    const seriesDurations = { 'B': 25, 'R': 15, 'K': 10, 'J': 7, 'VIP': 5 };
+
+    const machines = [
+      { id: 'b1', series: 'B', name: 'B1 Machine', price: 30000, daily: 3000, image: 'https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png', isFirstInSeries: true },
+      { id: 'b2', series: 'B', name: 'B2 Machine', price: 65000, daily: 6000, image: 'https://i.postimg.cc/fyx9XBZr/11-5dda.png', isFirstInSeries: false },
+      { id: 'b3', series: 'B', name: 'B3 Machine', price: 100000, daily: 8000, image: 'https://i.postimg.cc/SxZzWX05/71-d7eb.png', isFirstInSeries: false },
+      { id: 'b4', series: 'B', name: 'B4 Machine', price: 250000, daily: 18000, image: 'https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png', isFirstInSeries: false },
+      { id: 'r1', series: 'R', name: 'R1 Machine', price: 200000, daily: 20000, image: 'https://i.postimg.cc/N0Hf5LQD/r16vpdwr-2fa1.png', isFirstInSeries: true },
+      { id: 'r2', series: 'R', name: 'R2 Machine', price: 450000, daily: 40000, image: 'https://i.postimg.cc/tR5R1KGK/774an9gs-3c68.png', isFirstInSeries: false },
+      { id: 'r3', series: 'R', name: 'R3 Machine', price: 700000, daily: 67000, image: 'https://i.postimg.cc/9QNYcgfV/IMG-20260909-WA0103(1).jpg', isFirstInSeries: false },
+      { id: 'r4', series: 'R', name: 'R4 Machine', price: 1000000, daily: 110000, image: 'https://i.postimg.cc/WzjM5Q5H/IMG-20260909-WA0104.jpg', isFirstInSeries: false },
+      { id: 'k1', series: 'K', name: 'K1 Machine', price: 500000, daily: 70000, image: 'https://i.postimg.cc/9QNYcgfV/IMG-20260909-WA0103(1).jpg', isFirstInSeries: true },
+      { id: 'k2', series: 'K', name: 'K2 Machine', price: 850000, daily: 125000, image: 'https://i.postimg.cc/1XJNJ4nF/IMG-20260909-WA0102.jpg', isFirstInSeries: false },
+      { id: 'k3', series: 'K', name: 'K3 Machine', price: 1500000, daily: 210000, image: 'https://i.postimg.cc/T17pnSFf/IMG-20260909-WA0101.jpg', isFirstInSeries: false },
+      { id: 'k4', series: 'K', name: 'K4 Machine', price: 3000000, daily: 500000, image: 'https://i.postimg.cc/qRpRS4dc/IMG-20260909-WA0099.jpg', isFirstInSeries: false },
+      { id: 'j1', series: 'J', name: 'J1 Machine', price: 200000, daily: 45000, image: 'https://i.postimg.cc/1tKH1mVz/IMG-20260909-WA0114.jpg', isFirstInSeries: true },
+      { id: 'j2', series: 'J', name: 'J2 Machine', price: 500000, daily: 100000, image: 'https://i.postimg.cc/wjsQTcR4/IMG-20260909-WA0111.jpg', isFirstInSeries: false },
+      { id: 'j3', series: 'J', name: 'J3 Machine', price: 1000000, daily: 250000, image: 'https://i.postimg.cc/D0ZqVqKc/IMG-20260909-WA0110.jpg', isFirstInSeries: false },
+      { id: 'j4', series: 'J', name: 'J4 Machine', price: 3000000, daily: 750000, image: 'https://i.postimg.cc/pdsYL2Jk/IMG-20260909-WA0130.jpg', isFirstInSeries: false },
+      { id: 'vip1', series: 'VIP', name: 'VIP 1 Machine', price: 500000, daily: 125000, image: 'https://i.postimg.cc/YS0L8QQ4/IMG-20260909-WA0131.jpg', isFirstInSeries: false, requiredInvestors: 3 },
+      { id: 'vip2', series: 'VIP', name: 'VIP 2 Machine', price: 1000000, daily: 270000, image: 'https://i.postimg.cc/t4CsCFSv/IMG-20260909-WA0108.jpg', isFirstInSeries: false, requiredInvestors: 10 },
+      { id: 'vip3', series: 'VIP', name: 'VIP 3 Machine', price: 4000000, daily: 1400000, image: 'https://i.postimg.cc/PJTtVk09/IMG-20260909-WA0129.jpg', isFirstInSeries: false, requiredInvestors: 20 },
+      { id: 'vip4', series: 'VIP', name: 'VIP 4 Machine', price: 7500000, daily: 2400000, image: 'https://i.postimg.cc/YqXpRZ8c/IMG-20260909-WA0123.jpg', isFirstInSeries: false, requiredInvestors: 50 }
+    ];
+
+    let currentUserId = '';
+    let currentUserPhone = '';
+    let balance = 5000, inviteCode = '', teamCount = 0, vipTier = 'None';
+    let curS = 'ALL';
+    let deposits = [], withdrawals = [], investmentsList = [], activeMachines = [];
+    let currentRecordTab = 'deposits', lastRewardDate = '', hasDeposited = false, hasPurchased = false, claimedMilestones = [];
+    let referredByCode = '';
+    let resetTargetEmail = '';
+    let isBanned = false;
+
+    // Deposit flow state variables
+    let selectedNetwork = 'Airtel';
+    let pendingDepositAmount = 0;
+    let pendingDepositPhone = '';
+
+    const adminPhoneKey = "0761811992";
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+      referredByCode = refCode;
+      let banner = document.getElementById('refBanner');
+      if (banner) { banner.style.display = 'block'; banner.innerText = `🎁 Registered via team link (${refCode}).`; }
+    }
+
+    function generateUniqueRefCode() {
+      let chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let code = 'REF-';
+      for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+      return code;
+    }
+
+    function switchAuthTab(tab) {
+      document.getElementById('loginForm').style.display = (tab === 'login') ? 'block' : 'none';
+      document.getElementById('registerForm').style.display = (tab === 'register') ? 'block' : 'none';
+      document.getElementById('tabLoginBtn').className = (tab === 'login') ? 'auth-tab active' : 'auth-tab';
+      document.getElementById('tabRegBtn').className = (tab === 'register') ? 'auth-tab active' : 'auth-tab';
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const { onAuthStateChanged } = window.firebaseFns;
+      onAuthStateChanged(window.firebaseAuth, (user) => {
+        if (user) {
+          currentUserId = user.uid;
+          loadUserData();
+          loadAnnouncementsList();
+        }
+      });
+    });
+
+    async function loadAnnouncementsList() {
+      try {
+        const { getDoc, collection, getDocs, doc } = window.firebaseFns;
+        let snap = await getDoc(doc(window.firebaseDb, "settings", "broadcast"));
+        if (snap.exists() && snap.data().message) {
+          let msg = snap.data().message;
+          document.getElementById('broadcastText').innerText = msg;
+          document.getElementById('broadcastBanner').style.display = 'block';
+        }
+
+        let annSnap = await getDocs(collection(window.firebaseDb, "announcements"));
+        let annHtml = '';
+        annSnap.forEach(d => {
+          let data = d.data();
+          annHtml += `
+            <div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid var(--border);">
+              <div style="font-size:10px; color:var(--mut); margin-bottom:2px;">${data.date || 'Announcement'}</div>
+              <div style="font-size:12px; color:var(--text);">${data.message}</div>
+            </div>
+          `;
+        });
+        document.getElementById('announcementListContainer').innerHTML = annHtml || `<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">${document.getElementById('broadcastText').innerText || 'No announcements yet.'}</div>`;
+      } catch(e) {}
+    }
+
+    async function handleLookupResetAccount() {
+      let rawPhone = document.getElementById('resetPhone').value.trim();
+      if (!rawPhone.match(/^07[0-9]{8}$/)) {
+        alert('⚠️ Please enter a valid 10-digit phone number starting with 07.');
+        return;
+      }
+      try {
+        const { collection, query, where, getDocs } = window.firebaseFns;
+        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+          alert('⚠️ No account found with this phone number.');
+          return;
+        }
+        querySnapshot.forEach((docSnap) => { resetTargetEmail = docSnap.data().email; });
+        
+        document.getElementById('resetStep1').style.display = 'none';
+        document.getElementById('resetStep2').style.display = 'block';
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+
+    async function handleConfirmNewPassword() {
+      let newPass = document.getElementById('newResetPassword').value;
+      if (!newPass || newPass.length < 6) {
+        alert('⚠️ Password must be at least 6 characters long.');
+        return;
+      }
+      try {
+        const { sendPasswordResetEmail } = window.firebaseFns;
+        await sendPasswordResetEmail(window.firebaseAuth, resetTargetEmail);
+        alert('✅ Password reset link has been dispatched to your email address.');
+        closeModal('forgotPasswordModal');
+        document.getElementById('resetStep1').style.display = 'block';
+        document.getElementById('resetStep2').style.display = 'none';
+        document.getElementById('resetPhone').value = '';
+        document.getElementById('newResetPassword').value = '';
+      } catch (error) {
+        alert('Error updating password: ' + error.message);
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      let rawPhone = document.getElementById('regPhone').value.trim();
+      let email = document.getElementById('regEmail').value.trim();
+      let password = document.getElementById('regPassword').value;
+      let confirmPassword = document.getElementById('regConfirmPassword').value;
+
+      if (!rawPhone.match(/^07[0-9]{8}$/)) {
+        alert('⚠️ Please enter a valid 10-digit phone number starting with 07.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        alert('⚠️ Passwords do not match!');
+        return;
+      }
+
+      try {
+        const { collection, query, where, getDocs, createUserWithEmailAndPassword, setDoc, doc } = window.firebaseFns;
+        
+        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          alert('⚠️ This phone number is already registered.');
+          return;
+        }
+
+        let userCredential = await createUserWithEmailAndPassword(window.firebaseAuth, email, password);
+        currentUserId = userCredential.user.uid;
+        inviteCode = generateUniqueRefCode();
+
+        let userData = {
+          phone: rawPhone, email, inviteCode, referredBy: referredByCode, balance: 5000, vipTier: 'None', teamCount: 0,
+          deposits: [{ desc: 'Welcome Bonus', amt: '+UGX 5,000', rawAmt: 0, timestamp: new Date().getTime() }],
+          withdrawals: [], investmentsList: [], activeMachines: [],
+          lastRewardDate: '', hasDeposited: false, hasPurchased: false, claimedMilestones: [],
+          isBanned: false, apologyMessage: ''
+        };
+
+        await setDoc(doc(window.firebaseDb, "users", currentUserId), userData);
+        alert('🎉 Account registered successfully!');
+        await loadUserData();
+      } catch (error) {
+        alert('Registration Error: ' + error.message);
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      let rawPhone = document.getElementById('loginPhone').value.trim();
+      let password = document.getElementById('loginPassword').value;
+
+      if (!rawPhone.match(/^07[0-9]{8}$/)) {
+        alert('⚠️ Please enter a valid 10-digit phone number starting with 07.');
+        return;
+      }
+
+      try {
+        const { collection, query, where, getDocs, signInWithEmailAndPassword } = window.firebaseFns;
+        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+          alert('⚠️ No account found with this phone number.');
+          return;
+        }
+        let userEmail = '';
+        querySnapshot.forEach((docSnap) => { 
+          let d = docSnap.data();
+          userEmail = d.email; 
+        });
+
+        let userCredential = await signInWithEmailAndPassword(window.firebaseAuth, userEmail, password);
+        currentUserId = userCredential.user.uid;
+        await loadUserData();
+      } catch (error) {
+        alert('Login Failed: Invalid phone number or password.');
+      }
+    }
+    async function loadUserData() {
+      const { doc, getDoc } = window.firebaseFns;
+      let docSnap = await getDoc(doc(window.firebaseDb, "users", currentUserId));
+      if (docSnap.exists()) {
+        let data = docSnap.data();
+        
+        currentUserPhone = data.phone || '';
+        balance = Number(data.balance) || 0;
+        inviteCode = data.inviteCode || generateUniqueRefCode();
+        vipTier = data.vipTier || 'None';
+        teamCount = Number(data.teamCount) || 0;
+        deposits = data.deposits || [];
+        withdrawals = data.withdrawals || [];
+        investmentsList = data.investmentsList || [];
+        activeMachines = data.activeMachines || [];
+        lastRewardDate = data.lastRewardDate || '';
+        hasDeposited = !!data.hasDeposited;
+        hasPurchased = !!data.hasPurchased;
+        claimedMilestones = data.claimedMilestones || [];
+        referredByCode = data.referredBy || '';
+        isBanned = !!data.isBanned;
+
+        processActiveMachinesProgress();
+        processWithdrawalsTimeout();
+
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'block';
+        document.getElementById('profileUsername').innerText = currentUserPhone;
+
+        if (isBanned && currentUserPhone !== adminPhoneKey) {
+          document.getElementById('apologySection').style.display = 'block';
+        } else {
+          document.getElementById('apologySection').style.display = 'none';
+        }
+
+        if (currentUserPhone === adminPhoneKey) {
+          document.getElementById('adminPortalBtn').style.display = 'block';
+          loadAdminDashboardData();
+        } else {
+          document.getElementById('adminPortalBtn').style.display = 'none';
+        }
+
+        updateUI();
+        renderMachines();
+        renderMilestones();
+        renderTeamView();
+      }
+    }
+
+    async function loadAdminDashboardData() {
+      try {
+        const { collection, getDocs } = window.firebaseFns;
+        let querySnapshot = await getDocs(collection(window.firebaseDb, "users"));
+        
+        let totalUsers = 0;
+        let activeUsers = 0;
+        let dormantUsers = 0;
+        let pendingQueueHtml = '';
+        let activeUsersHtml = '';
+        let dormantUsersHtml = '';
+        let apologyQueueHtml = '';
+        
+        let overallTotalDeposits = 0;
+        let overallWeeklyDeposits = 0;
+        let overallTotalWithdrawals = 0;
+        let overallWeeklyWithdrawals = 0;
+        
+        let nowTime = new Date().getTime();
+        let oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+
+        querySnapshot.forEach((docSnap) => {
+          let uData = docSnap.data();
+          totalUsers++;
+          let isUserActive = uData.hasDeposited || (uData.activeMachines && uData.activeMachines.length > 0);
+          
+          let userInfoSnippet = `
+            <div style="background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px; font-size:11px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <b>Phone:</b> ${uData.phone}<br>
+                <b>Email:</b> ${uData.email}<br>
+                <b>Balance:</b> UGX ${(Number(uData.balance)||0).toLocaleString()}
+              </div>
+              <div>
+                <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--danger); color:#fff;" onclick="adminDirectBanUser('${uData.phone}')">${uData.isBanned ? 'Unban' : 'Ban'}</button>
+              </div>
+            </div>
+          `;
+
+          if (isUserActive) {
+            activeUsers++;
+            activeUsersHtml += userInfoSnippet;
+          } else {
+            dormantUsers++;
+            dormantUsersHtml += userInfoSnippet;
+          }
+
+          if (uData.isBanned && uData.apologyMessage) {
+            apologyQueueHtml += `
+              <div style="background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px; font-size:11px;">
+                <div><b>Phone:</b> ${uData.phone}</div>
+                <div style="color:var(--warning); margin:4px 0;"><b>Apology:</b> "${uData.apologyMessage}"</div>
+                <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--accent);" onclick="adminUnbanUser('${uData.phone}')">Approve & Unban</button>
+              </div>
+            `;
+          }
+
+          if (uData.deposits && Array.isArray(uData.deposits)) {
+            uData.deposits.forEach(dep => {
+              let dAmount = Number(dep.rawAmt) || 0;
+              if (dAmount === 0 && dep.amt) {
+                let cleaned = dep.amt.replace(/[^0-9]/g, '');
+                dAmount = Number(cleaned) || 0;
+              }
+              overallTotalDeposits += dAmount;
+              if (dep.timestamp && (nowTime - dep.timestamp) <= oneWeekMs) {
+                overallWeeklyDeposits += dAmount;
+              }
+            });
+          }
+
+          if (uData.withdrawals && Array.isArray(uData.withdrawals)) {
+            uData.withdrawals.forEach((w, wIndex) => {
+              let wAmount = Number(w.rawAmount) || 0;
+              if (wAmount === 0 && w.amt) {
+                let cleaned = w.amt.replace(/[^0-9]/g, '');
+                wAmount = Number(cleaned) || 0;
+              }
+              
+              if (w.status === 'Succeed' || w.status === 'Pending') {
+                overallTotalWithdrawals += wAmount;
+                if (w.timestamp && (nowTime - w.timestamp) <= oneWeekMs) {
+                  overallWeeklyWithdrawals += wAmount;
+                }
+              }
+              if (w.status === 'Pending') {
+                pendingQueueHtml += `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px;">
+                    <div>
+                      <b>${uData.phone}</b><br>
+                      <span style="color:var(--danger); font-weight:700;">${w.amt}</span>
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                      <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--accent);" onclick="adminApproveWithdrawal('${docSnap.id}', ${wIndex})">Approve</button>
+                      <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--danger); color:#fff;" onclick="adminRejectWithdrawal('${docSnap.id}', ${wIndex})">Reject</button>
+                    </div>
+                  </div>
+                `;
+              }
+            });
+          }
+        });
+
+        document.getElementById('adminStatTotalUsers').innerText = totalUsers;
+        document.getElementById('adminStatActiveUsers').innerText = activeUsers;
+        document.getElementById('adminStatDormantUsers').innerText = dormantUsers;
+        document.getElementById('adminStatTotalDeposits').innerText = 'UGX ' + overallTotalDeposits.toLocaleString();
+        document.getElementById('adminStatWeeklyDeposits').innerText = 'UGX ' + overallWeeklyDeposits.toLocaleString();
+        document.getElementById('adminStatTotalWithdrawals').innerText = 'UGX ' + overallTotalWithdrawals.toLocaleString();
+        document.getElementById('adminStatWeeklyWithdrawals').innerText = 'UGX ' + overallWeeklyWithdrawals.toLocaleString();
+
+        document.getElementById('adminActiveUsersList').innerHTML = activeUsersHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No active users found.</div>';
+        document.getElementById('adminDormantUsersList').innerHTML = dormantUsersHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No dormant users found.</div>';
+        document.getElementById('adminApologyQueue').innerHTML = apologyQueueHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No pending apology requests.</div>';
+        document.getElementById('adminWithdrawalsQueue').innerHTML = pendingQueueHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No pending withdrawals.</div>';
+        
+        loadAllDepositsLog(querySnapshot);
+      } catch (e) {
+        console.error("Admin Load Error:", e);
+      }
+    }
+    
+    function loadAllDepositsLog(querySnapshot) {
+      let depositsHtml = '';
+      querySnapshot.forEach((docSnap) => {
+        let uData = docSnap.data();
+        if (uData.deposits && Array.isArray(uData.deposits)) {
+          uData.deposits.forEach(dep => {
+            depositsHtml += `
+              <div style="background:var(--bg); padding:8px; border-radius:6px; margin-bottom:6px; font-size:11px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border);">
+                <div>
+                  <b>Phone:</b> ${uData.phone}<br>
+                  <span style="color:var(--mut);">${dep.desc || 'Deposit'}</span> ${dep.senderPhone ? `<br><small style="color:var(--accent);">Sender: ${dep.senderPhone}</small>` : ''}
+                </div>
+                <div style="color:var(--accent); font-weight:700;">${dep.amt || ''}</div>
+              </div>
+            `;
+          });
+        }
+      });
+      document.getElementById('adminAllDepositsList').innerHTML = depositsHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No deposits recorded yet.</div>';
+    }
+
+    async function adminCheckUserStatus() {
+      let phone = document.getElementById('adminBanPhoneInput').value.trim();
+      if (!phone.match(/^07[0-9]{8}$/)) {
+        alert('Enter a valid 10-digit phone number.');
+        return;
+      }
+      try {
+        const { collection, query, where, getDocs } = window.firebaseFns;
+        let q = query(collection(window.firebaseDb, "users"), where("phone", "==", phone));
+        let snap = await getDocs(q);
+        if (snap.empty) {
+          document.getElementById('adminUserLookupResult').innerHTML = `<span style="color:var(--danger);">❌ Number is NOT registered in the system.</span>`;
+          return;
+        }
+        snap.forEach(d => {
+          let dat = d.data();
+          let statusText = dat.isBanned ? '<span style="color:var(--danger);">Banned 🔒</span>' : '<span style="color:var(--accent);">Active / Registered ✅</span>';
+          document.getElementById('adminUserLookupResult').innerHTML = `Found! Status: ${statusText}`;
+        });
+      } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    async function adminBanUserAction() {
+      let phone = document.getElementById('adminBanPhoneInput').value.trim();
+      if (!phone.match(/^07[0-9]{8}$/)) {
+        alert('Enter a valid 10-digit phone number.');
+        return;
+      }
+      try {
+        const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
+        let q = query(collection(window.firebaseDb, "users"), where("phone", "==", phone));
+        let snap = await getDocs(q);
+        if (snap.empty) {
+          alert('⚠️ Number is not registered in the system.');
+          return;
+        }
+        snap.forEach(async (d) => {
+          await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: true });
+          alert(`🔒 Account (${phone}) has been banned successfully.`);
+          loadAdminDashboardData();
+        });
+      } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    async function adminDirectBanUser(phone) {
+      try {
+        const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
+        let q = query(collection(window.firebaseDb, "users"), where("phone", "==", phone));
+        let snap = await getDocs(q);
+        snap.forEach(async (d) => {
+          let currentBan = !!d.data().isBanned;
+          await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: !currentBan });
+          alert(`Account ban status toggled for ${phone}.`);
+          loadAdminDashboardData();
+        });
+      } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    async function adminUnbanUser(phone) {
+      try {
+        const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
+        let q = query(collection(window.firebaseDb, "users"), where("phone", "==", phone));
+        let snap = await getDocs(q);
+        snap.forEach(async (d) => {
+          await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: false, apologyMessage: '' });
+          alert(`✅ Account (${phone}) has been unbanned successfully!`);
+          loadAdminDashboardData();
+        });
+      } catch(e) { alert('Error: ' + e.message); }
+    }
+
+    async function submitUserApology() {
+      let msg = document.getElementById('userApologyInput').value.trim();
+      if (!msg) {
+        alert('Please write your apology message.');
+        return;
+      }
+      try {
+        const { updateDoc, doc } = window.firebaseFns;
+        await updateDoc(doc(window.firebaseDb, "users", currentUserId), { apologyMessage: msg });
+        alert('✅ Apology request submitted to admin successfully.');
+        document.getElementById('userApologyInput').value = '';
+      } catch(e) { alert('Error: ' + e.message); }
+    }
+    async function adminRejectWithdrawal(targetUserId, wIndex) {
+      try {
+        const { doc, getDoc, updateDoc } = window.firebaseFns;
+        let uRef = doc(window.firebaseDb, "users", targetUserId);
+        let snap = await getDoc(uRef);
+        if (snap.exists()) {
+          let uData = snap.data();
+          let wList = uData.withdrawals || [];
+          if (wList[wIndex]) {
+            let refundAmount = wList[wIndex].rawAmount || 0;
+            wList[wIndex].status = 'Cancelled';
+            let currentBal = Number(uData.balance) || 0;
+            await updateDoc(uRef, { 
+              balance: currentBal + refundAmount,
+              withdrawals: wList 
+            });
+            alert('🚫 Withdrawal rejected and funds refunded to user balance.');
+            loadAdminDashboardData();
+          }
+        }
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    async function adminSendBroadcast() {
+      let msg = document.getElementById('adminBroadcastInput').value.trim();
+      if (!msg) return alert('Enter announcement text.');
+      try {
+        const { setDoc, doc, addDoc, collection } = window.firebaseFns;
+        await setDoc(doc(window.firebaseDb, "settings", "broadcast"), { message: msg });
+        await addDoc(collection(window.firebaseDb, "announcements"), { 
+          message: msg, 
+          date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString() 
+        });
+        alert('📢 Broadcast announcement sent to all users successfully!');
+        document.getElementById('adminBroadcastInput').value = '';
+        loadAnnouncementsList();
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    function processWithdrawalsTimeout() {
+      let now = new Date().getTime();
+      let updated = false;
+      withdrawals.forEach(w => {
+        if (w.status === 'Pending' && w.timestamp) {
+          let elapsedHours = (now - w.timestamp) / (1000 * 60 * 60);
+          if (elapsedHours >= 24) {
+            w.status = 'Succeed';
+            updated = true;
+          }
+        }
+      });
+      if (updated) saveUserData();
+    }
+
+    function processActiveMachinesProgress() {
+      let now = new Date().getTime();
+      let updated = false;
+
+      activeMachines.forEach(m => {
+        if (m.claimed) return;
+        let lastCheck = m.lastCheckTime || m.purchaseTime || now;
+        let hoursPassed = (now - lastCheck) / (1000 * 60 * 60);
+
+        if (m.series === 'VIP') {
+          let cyclesPassed = Math.floor(hoursPassed / 24);
+          if (cyclesPassed > 0 && m.daysCounted < m.daysTotal) {
+            let actualDaysToAdd = Math.min(m.daysTotal - m.daysCounted, cyclesPassed);
+            m.daysCounted += actualDaysToAdd;
+            m.accrued = (m.accrued || 0) + (actualDaysToAdd * m.daily);
+            m.lastCheckTime = lastCheck + (actualDaysToAdd * 24 * 60 * 60 * 1000);
+            updated = true;
+          }
+        } else {
+          let lastCheckDate = new Date(lastCheck);
+          let currentDate = new Date(now);
+          
+          if (currentDate.getDate() !== lastCheckDate.getDate() || currentDate.getMonth() !== lastCheckDate.getMonth() || currentDate.getFullYear() !== lastCheckDate.getFullYear()) {
+            if (currentDate.getHours() >= 0 && m.daysCounted < m.daysTotal) {
+              m.daysCounted += 1;
+              m.accrued = m.daysCounted * m.daily;
+              m.lastCheckTime = now;
+              updated = true;
+            }
+          }
+        }
+      });
+      if (updated) saveUserData();
+    }
+
+    async function saveUserData() {
+      if (!currentUserId) return;
+      const { doc, updateDoc } = window.firebaseFns;
+      try {
+        await updateDoc(doc(window.firebaseDb, "users", currentUserId), {
+          balance: Number(balance) || 0, 
+          vipTier, 
+          teamCount: Number(teamCount) || 0, 
+          deposits, 
+          withdrawals,
+          investmentsList, 
+          activeMachines, 
+          lastRewardDate, 
+          hasDeposited, 
+          hasPurchased, 
+          claimedMilestones: claimedMilestones
+        });
+      } catch (error) {
+        console.error("Error saving data: ", error);
+      }
+    }
+
+    async function checkAndUpdateReferrerTeam() {
+      if (referredByCode && hasDeposited && hasPurchased) {
+        const { collection, query, where, getDocs, updateDoc, doc, increment } = window.firebaseFns;
+        try {
+          let q = query(collection(window.firebaseDb, "users"), where("inviteCode", "==", referredByCode));
+          let snap = await getDocs(q);
+          snap.forEach(async (referrerDoc) => {
+            await updateDoc(doc(window.firebaseDb, "users", referrerDoc.id), {
+              teamCount: increment(1)
+            });
+          });
+          referredByCode = ''; 
+        } catch(e) { console.error(e); }
+      }
+    }
+
+    async function logout() {
+      const { signOut } = window.firebaseFns;
+      await signOut(window.firebaseAuth);
+      location.reload();
+    }
+
+    function goTo(viewName) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('nav .nav-i').forEach(n => n.classList.remove('active'));
+      let target = document.getElementById('v-' + viewName);
+      if (target) target.classList.add('active');
+      let navMap = { home: 0, machines: 1, referrals: 2, records: 3, profile: 4 };
+      let navBtns = document.querySelectorAll('nav .nav-i');
+      if (navMap[viewName] !== undefined && navBtns[navMap[viewName]]) navBtns[navMap[viewName]].classList.add('active');
+      if (viewName === 'referrals') renderTeamView();
+    }
+
+    function setSeries(s) {
+      curS = s;
+      ['ALL', 'B', 'R', 'K', 'J', 'VIP'].forEach(series => {
+        let btn = document.getElementById('btnSeries' + series);
+        if (btn) {
+          btn.style.background = (series === s) ? '#10b981' : '#1e293b';
+          btn.style.color = (series === s) ? '#0f172a' : '#f8fafc';
+        }
+      });
+      renderMachines();
+    }
+
+    function renderMachines() {
+      let grid = document.getElementById('machinesGrid');
+      if (!grid) return;
+      let filtered = (curS === 'ALL') ? machines : machines.filter(m => m.series === curS);
+      grid.innerHTML = filtered.map(m => {
+        let duration = seriesDurations[m.series] || 30;
+        let totalIncome = m.daily * duration;
+        return `
+          <div onclick="openMachineDetail('${m.id}')" style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); display:flex; gap:14px; align-items:center; cursor:pointer; transition: border-color 0.2s;">
+            <img src="${m.image}" alt="${m.name}" style="width:110px; height:85px; object-fit:cover; border-radius:8px; flex-shrink:0;">
+            <div style="flex:1;">
+              <div style="font-weight:800; font-size:13px; margin-bottom:3px;">${m.name}</div>
+              <div style="font-size:10px; color:var(--mut);">Price: UGX ${m.price.toLocaleString()}</div>
+              <div style="font-size:10px; color:var(--accent);">Daily: UGX ${m.daily.toLocaleString()}</div>
+              <div style="font-size:10px; color:var(--mut);">Duration: ${duration} Days</div>
+              <div style="font-size:10px; color:var(--text); font-weight:700; margin-top:2px;">Total Income: UGX ${totalIncome.toLocaleString()}</div>
+              <button class="btn" style="padding:6px; font-size:11px; margin-top:6px;" onclick="event.stopPropagation(); buyMachine('${m.id}')">Rent Now</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openMachineDetail(id) {
+      let m = machines.find(item => item.id === id);
+      if (!m) return;
+      let duration = seriesDurations[m.series] || 30;
+      let totalIncome = m.daily * duration;
+
+      document.getElementById('detModalTitle').innerText = m.name;
+      document.getElementById('detModalImg').src = m.image;
+      document.getElementById('detModalPrice').innerText = 'UGX ' + m.price.toLocaleString();
+      document.getElementById('detModalDaily').innerText = 'UGX ' + m.daily.toLocaleString();
+      document.getElementById('detModalDuration').innerText = duration + ' Days';
+      document.getElementById('detModalTotal').innerText = 'UGX ' + totalIncome.toLocaleString();
+      
+      let rentBtn = document.getElementById('detModalRentBtn');
+      rentBtn.onclick = () => {
+        closeModal('machineDetailModal');
+        buyMachine(m.id);
+      };
+      openModal('machineDetailModal');
+    }
+
+    function buyMachine(id) {
+      let m = machines.find(item => item.id === id);
+      if (!m) return;
+
+      if (m.series === 'VIP' && teamCount < m.requiredInvestors) {
+        alert(`⚠️ VIP Restriction: You need at least ${m.requiredInvestors} team investors to rent the ${m.name}. Current investors: ${teamCount}.`);
+        return;
+      }
+
+      let activeOfThisType = activeMachines.filter(item => item.id === m.id && !item.claimed);
+      if (m.isFirstInSeries) {
+        if (activeOfThisType.length >= 2) {
+          alert(`⚠️ Limit Reached: You already have 2 active instances of (${m.name}). You can re-purchase it after their cycles end.`);
+          return;
+        }
+      } else {
+        if (activeOfThisType.length >= 1) {
+          alert(`⚠️ Limit Reached: You already have an active instance of (${m.name}). You can re-purchase it after its cycle ends.`);
+          return;
+        }
+      }
+
+      if (balance < m.price) { alert('Insufficient wallet balance.'); return; }
+
+      balance = Number(balance) - Number(m.price);
+      hasPurchased = true;
+      let duration = seriesDurations[m.series] || 30;
+      let nowTime = new Date().getTime();
+
+      activeMachines.push({
+        id: m.id, name: m.name + (m.series === 'VIP' ? ' (VIP 24H Cycle)' : ''), series: m.series, price: m.price, daily: m.daily,
+        daysTotal: duration, daysCounted: 0, accrued: 0, totalCycle: m.daily * duration, purchaseTime: nowTime, lastCheckTime: nowTime, claimed: false
+      });
+
+      investmentsList.unshift({ name: m.name, price: m.price, daily: m.daily });
+      deposits.unshift({ desc: 'Rented ' + m.name, amt: '-UGX ' + m.price.toLocaleString(), rawAmt: -m.price, timestamp: nowTime });
+
+      saveUserData();
+      checkAndUpdateReferrerTeam();
+      updateUI();
+      alert('Successfully deployed ' + m.name + '!');
+    }
+
+    function receiveIncome(index) {
+      let machine = activeMachines[index];
+      let earningsToClaim = 0;
+
+      if (machine.series === 'VIP') {
+        earningsToClaim = machine.accrued || machine.daily;
+        if (earningsToClaim > 0) {
+          balance = Number(balance) + Number(earningsToClaim);
+          machine.accrued = 0;
+          if (machine.daysCounted >= machine.daysTotal) {
+            machine.claimed = true;
+          }
+          deposits.unshift({ desc: `VIP Income (${machine.name})`, amt: '+UGX ' + earningsToClaim.toLocaleString(), rawAmt: earningsToClaim, timestamp: new Date().getTime() });
+          saveUserData();
+          updateUI();
+          alert(`Successfully received UGX ${earningsToClaim.toLocaleString()} into your balance!`);
+        } else {
+          alert('No daily VIP income available to receive right now.');
+        }
+      } else {
+        if ((machine.daysCounted || 0) >= machine.daysTotal && !machine.claimed) {
+          earningsToClaim = machine.totalCycle;
+          balance = Number(balance) + Number(earningsToClaim);
+          machine.claimed = true;
+          deposits.unshift({ desc: `Cycle Income (${machine.name})`, amt: '+UGX ' + earningsToClaim.toLocaleString(), rawAmt: earningsToClaim, timestamp: new Date().getTime() });
+          saveUserData();
+          updateUI();
+          alert(`Cycle completed! Successfully received UGX ${earningsToClaim.toLocaleString()} into your balance! You can now re-purchase this machine.`);
+        } else {
+          alert('Normal machines credit their earnings automatically at 12:00 AM daily and can be claimed upon completion.');
+        }
+      }
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    
+    function openDepositModal() {
+      document.getElementById('depositViewA').style.display = 'block';
+      document.getElementById('depositViewB').style.display = 'none';
+      document.getElementById('depositModalTitle').innerText = 'Deposit Funds - Step 1';
+      document.getElementById('depositPhoneInput').value = currentUserPhone || '';
+      document.getElementById('depositAmt').value = '';
+      openModal('depositModal');
+    }
+    
+// 1. Explicitly bind all UI navigation and modal functions globally
+window.switchAuthTab = function(tabName) {
+    const loginForm = document.getElementById('loginFormSection');
+    const registerForm = document.getElementById('registerFormSection');
+    if (loginForm && registerForm) {
+        if (tabName === 'login') {
+            loginForm.style.display = 'block';
+            registerForm.style.display = 'none';
+        } else {
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'block';
+        }
+    }
+};
+
+window.openModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'flex';
+};
+
+window.closeModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+};
+
+// 2. Explicitly bind network and quick deposit selectors
+if (typeof window.selectedNetwork === 'undefined') {
+    window.selectedNetwork = 'MTN';
+}
+
+window.selectDepositNetwork = function(network) {
+    window.selectedNetwork = network;
+    const airtelBtn = document.getElementById('airtelBtn');
+    const mtnBtn = document.getElementById('mtnBtn');
+    
+    if (airtelBtn && mtnBtn) {
+        if (network === 'Airtel') {
+            airtelBtn.style.borderColor = '#10B981';
+            mtnBtn.style.borderColor = 'transparent';
+        } else {
+            mtnBtn.style.borderColor = '#10B981';
+            airtelBtn.style.borderColor = 'transparent';
+        }
+    }
+};
+
+window.selectQuickDeposit = function(amount) {
+    let amtInput = document.getElementById('depositAmt');
+    if (amtInput) {
+        amtInput.value = amount;
+    }
+};
+
+// 3. Robust deposit function with safe JSON response handling
+window.proceedToDepositSummary = async function() {
+    let phone = document.getElementById('depositPhoneInput').value.trim();
+    let amt = parseFloat(document.getElementById('depositAmt').value);
+
+    let currentUserId = (typeof userId !== 'undefined' && userId) ? userId : 
+                        (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) ? currentUser.uid : 
+                        localStorage.getItem('userId') || localStorage.getItem('canaan_uid') || localStorage.getItem('uid') || 'test_user_staging_id';
+
+    if (!phone.match(/^07[0-9]{8}$/)) {
+        alert('⚠️ Please enter a valid 10-digit phone number starting with 07.');
+        return;
+    }
+    if (isNaN(amt) || amt <= 0) {
+        alert('⚠️ Please enter a valid deposit amount.');
+        return;
+    }
+
+    alert('📲 Sending automated MTN MoMo payment prompt to ' + phone + '...');
+
+    try {
+        let response = await fetch('/.netlify/functions/deposit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                amount: amt, 
+                phone: phone,
+                uid: currentUserId,
+                network: window.selectedNetwork || 'MTN'
+            })
+        });
+
+        // Safely check if the response is valid JSON before parsing
+        let responseText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Non-JSON response from server:", responseText);
+            alert('⚠️ Server returned an invalid response. Check your Netlify function deployment or environment variables.');
+            return;
+        }
+
+        if (result.success) {
+            balance = Number(balance || 0) + Number(amt);
+            hasDeposited = true;
+            if (typeof deposits !== 'undefined') {
+                deposits.unshift({ 
+                    desc: `Automatic Deposit (${window.selectedNetwork || 'MTN'} MoMo)`, 
+                    amt: '+UGX ' + amt.toLocaleString(), 
+                    rawAmt: amt, 
+                    senderPhone: phone,
+                    timestamp: new Date().getTime() 
+                });
+            }
+
+            if (typeof saveUserData === 'function') saveUserData();
+            if (typeof checkAndUpdateReferrerTeam === 'function') checkAndUpdateReferrerTeam();
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof closeModal === 'function') closeModal('depositModal');
+            
+            alert('✅ Payment successful and balance updated!');
+        } else {
+            alert('📲 ' + (result.message || result.error || 'Please check your phone and enter your Mobile Money PIN.'));
+        }
+    } catch (err) {
+        console.error('Deposit connection error:', err);
+        alert('⚠️ Network error connecting to deposit service. Make sure your Netlify functions are deployed.');
+    }
+};
+
+
+      function calculateWithdrawFee() {
+      let val = parseFloat(document.getElementById('withdrawAmt').value) || 0;
+      let calcEl = document.getElementById('withdrawFeeCalc');
+      if (val <= 0) return calcEl.style.display = 'none';
+      calcEl.style.display = 'block';
+      calcEl.innerHTML = `Fee (10%): UGX ${(val * 0.10).toLocaleString()} | <b>Net: UGX ${(val * 0.90).toLocaleString()}</b>`;
+    }
+
+    function confirmWithdraw() {
+      if (!hasDeposited || !hasPurchased) {
+        alert('⚠️ Withdrawal restricted! You must make a deposit and rent at least one machine before withdrawing your funds/welcome bonus.');
+        return;
+      }
+
+      let val = parseFloat(document.getElementById('withdrawAmt').value);
+      if (isNaN(val) || val < 5000) {
+        alert('⚠️ Minimum withdrawal amount is strictly UGX 5,000.');
+        return;
+      }
+      if (val > balance) return alert('Insufficient balance.');
+      
+      balance = Number(balance) - Number(val);
+      withdrawals.unshift({ 
+        desc: 'Withdrawal', 
+        amt: '-UGX ' + val.toLocaleString(), 
+        rawAmount: val,
+        status: 'Pending',
+        timestamp: new Date().getTime()
+      });
+      
+      closeModal('withdrawModal');
+      saveUserData();
+      updateUI();
+      alert('Withdrawal request submitted.');
+    }
+
+    function cancelWithdrawal(index) {
+      let item = withdrawals[index];
+      if (item && item.status === 'Pending') {
+        balance = Number(balance) + Number(item.rawAmount);
+        item.status = 'Cancelled';
+        saveUserData();
+        updateUI();
+        alert(`Withdrawal request cancelled. UGX ${item.rawAmount.toLocaleString()} has been refunded to your account balance.`);
+      }
+    }
+
+    function claimDailyReward() {
+      let today = new Date().toDateString();
+      if (lastRewardDate === today) return alert('Already claimed today!');
+      lastRewardDate = today;
+      balance = Number(balance) + 200;
+      deposits.unshift({ desc: 'Daily Reward', amt: '+UGX 200', rawAmt: 200, timestamp: new Date().getTime() });
+      saveUserData();
+      updateUI();
+      alert('Claimed UGX 200!');
+    }
+
+    function switchRecordTab(tab) {
+      currentRecordTab = tab;
+      ['deposits', 'withdrawals', 'investments', 'active'].forEach(t => {
+        let btn = document.getElementById('rtab-' + t);
+        if (btn) {
+          btn.style.background = (t === tab) ? '#10b981' : '#1e293b';
+          btn.style.color = (t === tab) ? '#0f172a' : '#f8fafc';
+        }
+      });
+      processWithdrawalsTimeout();
+      updateUI();
+    }
+
+    function renderMilestones() {
+      let list = document.getElementById('milestoneList');
+      if (!list) return;
+      list.innerHTML = milestones.map(m => `
+        <div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:8px; font-size:11px;">
+          <b>${m.level} Machines:</b> Requires at least <b>${m.target}</b> team investors.
+        </div>
+      `).join('');
+    }
+
+    function renderTeamView() {
+      document.getElementById('refLinkText').value = window.location.origin + window.location.pathname + '?ref=' + inviteCode;
+      document.getElementById('teamMembersCount').innerText = Number(teamCount) || 0;
+    }
+
+    function copyRefLink() {
+      navigator.clipboard.writeText(document.getElementById('refLinkText').value);
+      alert('Copied invitation link!');
+    }
+
+    function updateUI() {
+      let safeBalance = Number(balance);
+      if (isNaN(safeBalance)) safeBalance = 0;
+
+      document.querySelectorAll('.userBalanceEl').forEach(el => el.innerText = 'UGX ' + safeBalance.toLocaleString());
+      let headerEl = document.getElementById('userBalanceHeader');
+      if (headerEl) headerEl.innerText = 'UGX ' + safeBalance.toLocaleString();
+      
+      let vipTierEl = document.getElementById('userVipTier');
+      if (vipTierEl) vipTierEl.innerText = vipTier;
+      
+      renderTeamView();
+
+      let container = document.getElementById('recordsContainer');
+      if (container) {
+        if (currentRecordTab === 'active') {
+          container.innerHTML = activeMachines.map((m, index) => {
+            let daysLeft = m.daysTotal - m.daysCounted;
+            let showReceiveBtn = false;
+            if (m.series === 'VIP' && (m.accrued || 0) > 0) {
+              showReceiveBtn = true;
+            } else if (m.series !== 'VIP' && (m.daysCounted || 0) >= m.daysTotal && !m.claimed) {
+              showReceiveBtn = true;
+            }
+
+            return `
+              <div style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); margin-bottom:10px;">
+                <div style="font-weight:800; font-size:13px; margin-bottom:8px; color:var(--text);">${m.name} ${m.claimed ? '(Completed)' : ''}</div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
+                  <span>Days Counted:</span>
+                  <span style="color:var(--text);">${m.daysCounted || 0} / ${m.daysTotal} days</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
+                  <span>Days Left:</span>
+                  <span style="color:var(--text);">${daysLeft} days</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
+                  <span>Accrued Earnings:</span>
+                  <span style="color:var(--accent); font-weight:700;">UGX ${(m.accrued || 0).toLocaleString()}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:10px; color:var(--mut);">
+                  <span>Total Cycle Income:</span>
+                  <span style="color:var(--text); font-weight:700;">UGX ${m.totalCycle.toLocaleString()}</span>
+                </div>
+                ${showReceiveBtn ? `<button class="btn" style="padding:10px; font-size:12px;" onclick="receiveIncome(${index})">RECEIVE INCOME</button>` : ''}
+              </div>
+            `;
+          }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No active machines.</div>';
+        } else if (currentRecordTab === 'withdrawals') {
+          container.innerHTML = withdrawals.map((item, index) => {
+            let statusMarkup = '';
+            if (item.status === 'Pending') {
+              statusMarkup = `<div style="font-size:11px; color:#f59e0b; font-weight:600; text-align:right;">Pending<br><span style="color:#ef4444; cursor:pointer; text-decoration:underline;" onclick="cancelWithdrawal(${index})">Cancel</span></div>`;
+            } else if (item.status === 'Succeed') {
+              statusMarkup = `<div style="font-size:11px; color:var(--accent); font-weight:600; text-align:right;">Succeed</div>`;
+            } else if (item.status === 'Cancelled') {
+              statusMarkup = `<div style="font-size:11px; color:var(--mut); text-align:line-through; text-align:right;">Cancelled</div>`;
+            }
+
+            return `
+              <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                <div>
+                  <div style="font-weight:600; color:var(--text);">${item.desc}</div>
+                  <b style="color:var(--danger);">${item.amt}</b>
+                </div>
+                <div>${statusMarkup}</div>
+              </div>
+            `;
+          }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No withdrawal records.</div>';
+        } else {
+          let data = currentRecordTab === 'deposits' ? deposits : investmentsList;
+          container.innerHTML = data.map(item => `
+            <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; font-size:11px;">
+              <span>${item.desc || item.name} ${item.senderPhone ? `<br><small style="color:var(--mut);">Sender: ${item.senderPhone}</small>` : ''}</span>
+              <b style="color:var(--accent);">${item.amt || ('UGX ' + item.price.toLocaleString())}</b>
+            </div>
+          `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No records.</div>';
+        }
+      }
+    }
+  </script>
+</body>
+</html>
