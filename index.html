@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CANAAN OI - Invest, Mine & Earn</title>
   
-  <!-- SEO Meta Tags for Google Indexing & Previews -->
-  <meta name="description" content="Canaan OI is a premier mining investment platform where users can invest, rent hardware machines, and earn secure daily returns.">
-  <meta name="keywords" content="Canaan OI, mining investment platform, Uganda online investment, crypto mining, digital assets">
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Canaan OI is a premier mining investment platform where users can invest, rent hardware machines, and earn daily returns.">
+  <meta name="keywords" content="Canaan OI, mining investment platform, crypto mining, digital assets">
   <meta property="og:title" content="CANAAN OI - Invest, Mine & Earn">
-  <meta property="og:description" content="Canaan OI is a trusted mining investment platform offering high-yield hardware machines and daily passive income.">
+  <meta property="og:description" content="Canaan OI is a trusted mining investment platform offering high-yield hardware machines.">
   <meta property="og:image" content="https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png">
   <meta property="og:type" content="website">
 
-  <!-- Firebase App (Modular CDN v10) -->
+  <!-- Firebase App v10 Modular SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, deleteDoc, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBGy98JNl66ViuT7Q4K_uPYKBrZNE0WxR0",
@@ -45,6 +45,7 @@
       setDoc,
       getDoc,
       updateDoc,
+      deleteDoc,
       collection,
       query,
       where,
@@ -196,7 +197,6 @@
 
     <!-- HOME VIEW -->
     <div id="v-home" class="view active">
-      <!-- Broadcast Notice Banner -->
       <div id="broadcastBanner" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); padding: 10px; border-radius: 8px; margin-bottom: 14px; font-size: 11px; color: var(--warning); cursor: pointer;" onclick="openModal('announcementModal')">
         <b>📢 Admin Announcement:</b> <span id="broadcastText"></span> (Tap to view all)
       </div>
@@ -225,9 +225,8 @@
         </div>
       </div>
 
-      <!-- Manager & Download App Buttons -->
       <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-        <a href="https://wa.me/447456089196" target="_blank" class="btn" style="background: #25D366; color: #fff; flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <a id="managerSupportLink" href="https://wa.me/447456089196" target="_blank" class="btn" style="background: #25D366; color: #fff; flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
           👤 Manager Support
         </a>
         <a href="#" target="_blank" class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--text); flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
@@ -241,7 +240,7 @@
       </div>
 
       <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-        <a href="https://chat.whatsapp.com/J8WonMtmqgW6ljsV5fI3l5?s=cl&p=a&mlu=4&ilr=4" target="_blank" class="btn" style="background: #25D366; color: #fff; flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <a id="whatsappGroupLink" href="https://chat.whatsapp.com/J8WonMtmqgW6ljsV5fI3l5?s=cl&p=a&mlu=4&ilr=4" target="_blank" class="btn" style="background: #25D366; color: #fff; flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
           💬 WhatsApp Group
         </a>
         <a href="https://t.me/+s63xqIYPEdo5ZGI0" target="_blank" class="btn" style="background: #0088cc; color: #fff; flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
@@ -267,7 +266,7 @@
     <!-- MACHINES VIEW -->
     <div id="v-machines" class="view">
       <div style="font-weight: 800; font-size: 15px; margin-bottom: 4px;">Hardware Catalog</div>
-      <div style="font-size: 11px; color: var(--mut); margin-bottom: 12px; line-height: 1.4;">Only the 1st machine of non-VIP series allows up to 2 active purchases. Others and VIP machines allow 1 active purchase. Machines can be re-purchased once their cycle ends. VIP machines require specific team investor counts.</div>
+      <div style="font-size: 11px; color: var(--mut); margin-bottom: 12px; line-height: 1.4;">Only the 1st machine of non-VIP series allows up to 2 active purchases. Others allow 1 active purchase until cycle ends.</div>
       
       <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px;">
         <button id="btnSeriesALL" class="btn" style="padding: 6px 14px; font-size: 11px; width: auto;" onclick="setSeries('ALL')">ALL</button>
@@ -315,15 +314,13 @@
     <div id="v-profile" class="view">
       <div style="font-weight: 800; font-size: 15px; margin-bottom: 12px;">Account Profile</div>
       
-      <!-- Admin Panel Access Button -->
       <button id="adminPortalBtn" class="btn" style="background: var(--admin-badge); color: #fff; margin-bottom: 14px; display: none;" onclick="openModal('adminModal')">
         🛠️ Open Admin Control Dashboard
       </button>
 
-      <!-- Apology Request Option for Banned Users -->
       <div id="apologySection" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); padding: 14px; border-radius: 10px; margin-bottom: 14px;">
         <div style="font-size: 12px; font-weight: 700; color: var(--danger); margin-bottom: 6px;">🚨 Your account is currently banned</div>
-        <div style="font-size: 11px; color: var(--mut); margin-bottom: 10px;">Submit an apology message to the admin requesting to unban your account.</div>
+        <div style="font-size: 11px; color: var(--mut); margin-bottom: 10px;">Submit an apology message to request account unban.</div>
         <div class="form-group" style="margin-bottom: 8px;">
           <textarea id="userApologyInput" rows="2" placeholder="Write your apology message here..."></textarea>
         </div>
@@ -355,7 +352,6 @@
         <span style="font-size: 13px; cursor: pointer; color: var(--mut);" onclick="closeModal('adminModal')">✕</span>
       </div>
 
-      <!-- Quick Platform Statistics -->
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
         <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
           <div style="font-size: 10px; color: var(--mut);">Total Users</div>
@@ -371,7 +367,6 @@
         </div>
       </div>
 
-      <!-- Financial Totals Summary Cards -->
       <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
         <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
           <div style="font-size: 10px; color: var(--mut);">Total Deposited</div>
@@ -385,31 +380,79 @@
         </div>
       </div>
 
-      <!-- User Ban Management Tool -->
+      <!-- WHATSAPP LINK MANAGEMENT -->
       <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;">
-        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">🔒 User Ban & Account Control</div>
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">💬 WhatsApp Link Controls</div>
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label>Manager Support (e.g., https://wa.me/447456089196)</label>
+          <input type="text" id="adminManagerWaInput" placeholder="https://wa.me/...">
+        </div>
+        <div class="form-group" style="margin-bottom: 8px;">
+          <label>WhatsApp Group Link</label>
+          <input type="text" id="adminGroupWaInput" placeholder="https://chat.whatsapp.com/...">
+        </div>
+        <button class="btn" style="background: var(--accent); color: #000; padding: 8px; font-size: 11px;" onclick="adminSaveWaLinks()">Update Links</button>
+      </div>
+
+      <!-- HARDWARE MACHINE MANAGER -->
+      <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;">
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">⚡ Machine Manager (Add / Modify)</div>
+        <div class="form-group" style="margin-bottom: 6px;">
+          <input type="text" id="adminMachId" placeholder="Machine ID (e.g. b5, vip5)">
+        </div>
+        <div class="form-group" style="margin-bottom: 6px;">
+          <select id="adminMachSeries">
+            <option value="B">B-SERIES</option>
+            <option value="R">R-SERIES</option>
+            <option value="K">K-SERIES</option>
+            <option value="J">J-SERIES</option>
+            <option value="VIP">VIP</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 6px;">
+          <input type="text" id="adminMachName" placeholder="Name (e.g. B5 Machine)">
+        </div>
+        <div class="form-group" style="margin-bottom: 6px;">
+          <input type="number" id="adminMachPrice" placeholder="Rental Price (UGX)">
+        </div>
+        <div class="form-group" style="margin-bottom: 6px;">
+          <input type="number" id="adminMachDaily" placeholder="Daily Yield (UGX)">
+        </div>
+        <div class="form-group" style="margin-bottom: 6px;">
+          <input type="text" id="adminMachImage" placeholder="Image URL (https://...)">
+        </div>
+        <div class="form-group" style="margin-bottom: 6px;">
+          <input type="number" id="adminMachReqInvestors" placeholder="Req. Investors (for VIP only)" value="0">
+        </div>
+        <button class="btn" style="background: var(--accent); color: #000; padding: 8px; font-size: 11px; margin-bottom: 8px;" onclick="adminSaveMachine()">Add / Save Machine</button>
+        
+        <div style="font-size: 11px; font-weight: 700; color: var(--mut); margin: 6px 0 4px 0;">Existing Machines Catalog:</div>
+        <div id="adminMachineList" style="max-height: 120px; overflow-y: auto; font-size: 11px;"></div>
+      </div>
+
+      <!-- USER LOOKUP & CONTROL -->
+      <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;">
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">🔒 User Password Reset & Control</div>
         <div class="form-group" style="margin-bottom: 8px;">
           <input type="tel" id="adminBanPhoneInput" placeholder="Enter phone number (07XXXXXXXX)" maxlength="10">
         </div>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
           <button class="btn" style="background: var(--warning); color: #000; padding: 8px; font-size: 11px; flex: 1;" onclick="adminCheckUserStatus()">Check Status</button>
-          <button class="btn" style="background: var(--danger); color: #fff; padding: 8px; font-size: 11px; flex: 1;" onclick="adminBanUserAction()">Ban Account</button>
+          <button class="btn" style="background: var(--danger); color: #fff; padding: 8px; font-size: 11px; flex: 1;" onclick="adminBanUserAction()">Ban / Unban</button>
         </div>
+        
+        <div class="form-group" style="margin-bottom: 8px;">
+          <input type="password" id="adminNewUserPassInput" placeholder="New Password for User">
+        </div>
+        <button class="btn" style="background: var(--admin-badge); color: #fff; padding: 8px; font-size: 11px;" onclick="adminResetUserPassword()">Reset Password via Email</button>
         <div id="adminUserLookupResult" style="font-size: 11px; color: var(--mut); margin-top: 8px;"></div>
       </div>
 
-      <!-- Apology Requests Queue for Banned Users -->
       <div style="margin-bottom: 14px;">
-        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📨 Banned Accounts Apology Requests</div>
-        <div id="adminApologyQueue" style="max-height: 140px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
-          <div style="font-size: 11px; color: var(--mut); text-align: center; padding: 10px;">Loading requests...</div>
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📨 Pending Deposits Log</div>
+        <div id="adminPendingDepositsQueue" style="max-height: 140px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
+          <div style="font-size: 11px; color: var(--mut); text-align: center; padding: 10px;">Loading queue...</div>
         </div>
-      </div>
-
-      <!-- Platform Deposits Log Viewer -->
-      <div style="margin-bottom: 14px;">
-        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">💵 Platform User Deposits Log</div>
-        <button class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--accent); padding: 8px; font-size: 11px; margin-bottom: 6px;" onclick="openModal('adminAllDepositsModal')">View All Deposits Made By Users →</button>
       </div>
 
       <div style="margin-bottom: 14px;">
@@ -420,9 +463,9 @@
       </div>
 
       <div style="margin-bottom: 14px;">
-        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📢 Broadcast Platform Announcement</div>
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📢 Broadcast Announcement</div>
         <div class="form-group" style="margin-bottom: 8px;">
-          <textarea id="adminBroadcastInput" rows="2" placeholder="Type announcement text for all users..."></textarea>
+          <textarea id="adminBroadcastInput" rows="2" placeholder="Type announcement text..."></textarea>
         </div>
         <button class="btn" style="background: var(--admin-badge); color: #fff; padding: 10px;" onclick="adminSendBroadcast()">Send Broadcast</button>
       </div>
@@ -452,19 +495,7 @@
       <div id="adminDormantUsersList" style="max-height: 320px; overflow-y: auto;"></div>
     </div>
   </div>
-
-  <!-- ADMIN ALL DEPOSITS MODAL -->
-  <div id="adminAllDepositsModal" class="modal">
-    <div class="modal-content" style="max-width: 440px;">
-      <div style="font-weight: 800; font-size: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: var(--accent);">
-        <span>💵 All Platform Deposits</span>
-        <span style="font-size: 13px; cursor: pointer; color: var(--mut);" onclick="closeModal('adminAllDepositsModal')">✕</span>
-      </div>
-      <div id="adminAllDepositsList" style="max-height: 340px; overflow-y: auto;"></div>
-    </div>
-  </div>
-
-  <!-- ANNOUNCEMENTS MODAL -->
+   <!-- ANNOUNCEMENTS MODAL -->
   <div id="announcementModal" class="modal">
     <div class="modal-content">
       <div style="font-weight: 800; font-size: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
@@ -529,7 +560,7 @@
 
       <div id="resetStep2" style="display: none;">
         <div style="font-size: 11px; color: var(--accent); margin-bottom: 12px; line-height: 1.4;">
-          ✅ Account found! Enter your new secure password below.
+          ✅ Account found! Enter new password below.
         </div>
         <div class="form-group">
           <label>New Password</label>
@@ -541,13 +572,12 @@
       <button class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--text); margin-top: 4px;" onclick="closeModal('forgotPasswordModal')">Cancel</button>
     </div>
   </div>
-  
 
   <!-- WITHDRAW MODAL -->
   <div id="withdrawModal" class="modal">
     <div class="modal-content">
       <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">Withdraw Funds</div>
-      <div style="font-size: 11px; color: var(--warning); margin-bottom: 12px; line-height: 1.4;">⚠️ Note: Minimum withdrawal is strictly UGX 5,000. A 10% network/service fee applies automatically.</div>
+      <div style="font-size: 11px; color: var(--warning); margin-bottom: 12px; line-height: 1.4;">⚠️ Minimum withdrawal is UGX 5,000. A 10% network fee applies automatically.</div>
       <div class="form-group">
         <label>Enter Amount (UGX):</label>
         <input type="number" id="withdrawAmt" placeholder="0" oninput="calculateWithdrawFee()">
@@ -558,15 +588,14 @@
     </div>
   </div>
 
-  <!-- DEPOSIT MODAL (VIEW A & VIEW B FLOW) -->
+  <!-- DEPOSIT MODAL -->
   <div id="depositModal" class="modal">
     <div class="modal-content">
       <div style="font-weight: 800; font-size: 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-        <span id="depositModalTitle">Deposit Funds - Step 1</span>
+        <span id="depositModalTitle">Deposit Funds</span>
         <span style="font-size: 11px; cursor: pointer; color: var(--mut);" onclick="closeModal('depositModal')">✕</span>
       </div>
 
-      <!-- VIEW A: Initial Number & Amount Input -->
       <div id="depositViewA">
         <div style="font-size: 11px; font-weight: 600; color: var(--mut); margin-bottom: 8px;">Select Mobile Network:</div>
         <div class="network-grid">
@@ -594,49 +623,8 @@
           <input type="number" id="depositAmt" placeholder="0">
         </div>
 
-        <button class="btn" style="margin-bottom: 8px;" onclick="proceedToDepositSummary()">Confirm & Continue →</button>
+        <button class="btn" style="margin-bottom: 8px;" onclick="submitFinalDeposit()">Confirm Deposit Prompt</button>
         <button class="btn" style="background:var(--card); border:1px solid var(--border); color:var(--text);" onclick="closeModal('depositModal')">Cancel</button>
-      </div>
-
-      <!-- VIEW B: Copy & Pay Summary Screen -->
-      <div id="depositViewB" style="display: none;">
-        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--accent); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 11px; line-height: 1.5;">
-          <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px;">📌 Payment Instructions:</div>
-          Transfer the exact amount to our official merchant collection number below via mobile money, then click Refresh/Verify.
-        </div>
-
-        <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 11px; margin-bottom: 14px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="color: var(--mut);">Total Amount:</span>
-            <span id="summaryDisplayAmt" style="color: var(--accent); font-weight: 800; font-size: 13px;">UGX 0</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span style="color: var(--mut);">Network:</span>
-            <span id="summaryDisplayNetwork" style="color: var(--text); font-weight: 700;">Airtel</span>
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-top: 1px solid var(--border); padding-top: 8px;">
-            <div>
-              <span style="color: var(--mut); display: block;">Collection Number:</span>
-              <span id="summaryMerchantNumber" style="color: var(--text); font-weight: 700; font-size: 12px;">0795160094</span>
-            </div>
-            <button class="btn" style="width: auto; padding: 6px 12px; font-size: 11px;" onclick="copyMerchantNumber()">Copy Number</button>
-          </div>
-          <div style="margin-top: 6px;">
-            <span style="color: var(--mut);">Account Name:</span>
-            <span id="summaryMerchantName" style="color: var(--text); font-weight: 700; display: block;">JOSEPH BYABASAIJA</span>
-          </div>
-        </div>
-
-        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning); padding: 10px; border-radius: 8px; font-size: 11px; color: var(--warning); margin-bottom: 14px; text-align: center;">
-          <b>Payment completed?</b> Click 'Verify & Refresh Balance' below once transferred.
-        </div>
-
-        <div id="ussdGuideText" style="font-size: 10px; color: var(--mut); text-align: center; margin-bottom: 12px;">
-          💡 Dial *185# (Airtel) or *165# (MTN) to send money to the collection number above.
-        </div>
-
-        <button class="btn" style="margin-bottom: 8px;" onclick="verifyAndCreditDeposit()">Verify & Refresh Balance</button>
-        <button class="btn" style="background:var(--card); border:1px solid var(--border); color:var(--text);" onclick="backToDepositViewA()">← Back</button>
       </div>
     </div>
   </div>
@@ -652,7 +640,7 @@
 
     const seriesDurations = { 'B': 25, 'R': 15, 'K': 10, 'J': 7, 'VIP': 5 };
 
-    const machines = [
+    let machines = [
       { id: 'b1', series: 'B', name: 'B1 Machine', price: 30000, daily: 3000, image: 'https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png', isFirstInSeries: true },
       { id: 'b2', series: 'B', name: 'B2 Machine', price: 65000, daily: 6000, image: 'https://i.postimg.cc/fyx9XBZr/11-5dda.png', isFirstInSeries: false },
       { id: 'b3', series: 'B', name: 'B3 Machine', price: 100000, daily: 8000, image: 'https://i.postimg.cc/SxZzWX05/71-d7eb.png', isFirstInSeries: false },
@@ -684,11 +672,7 @@
     let referredByCode = '';
     let resetTargetEmail = '';
     let isBanned = false;
-
-    // Deposit flow state variables
     let selectedNetwork = 'Airtel';
-    let pendingDepositAmount = 0;
-    let pendingDepositPhone = '';
 
     const adminPhoneKey = "0761811992";
 
@@ -719,13 +703,131 @@
       onAuthStateChanged(window.firebaseAuth, (user) => {
         if (user) {
           currentUserId = user.uid;
+          loadSettingsData();
+          loadMachinesFromDb();
           loadUserData();
           loadAnnouncementsList();
         }
       });
     });
 
-    async function loadAnnouncementsList() {
+    async function loadSettingsData() {
+      try {
+        const { getDoc, doc } = window.firebaseFns;
+        let snap = await getDoc(doc(window.firebaseDb, "settings", "links"));
+        if (snap.exists()) {
+          let data = snap.data();
+          if (data.managerSupport) {
+            document.getElementById('managerSupportLink').href = data.managerSupport;
+            document.getElementById('adminManagerWaInput').value = data.managerSupport;
+          }
+          if (data.whatsappGroup) {
+            document.getElementById('whatsappGroupLink').href = data.whatsappGroup;
+            document.getElementById('adminGroupWaInput').value = data.whatsappGroup;
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function adminSaveWaLinks() {
+      try {
+        const { doc, setDoc } = window.firebaseFns;
+        let mLink = document.getElementById('adminManagerWaInput').value.trim();
+        let gLink = document.getElementById('adminGroupWaInput').value.trim();
+        await setDoc(doc(window.firebaseDb, "settings", "links"), { managerSupport: mLink, whatsappGroup: gLink }, { merge: true });
+        if (mLink) document.getElementById('managerSupportLink').href = mLink;
+        if (gLink) document.getElementById('whatsappGroupLink').href = gLink;
+        alert('✅ WhatsApp links updated successfully!');
+      } catch (e) { alert('Error updating links: ' + e.message); }
+    }
+
+    async function loadMachinesFromDb() {
+      try {
+        const { collection, getDocs } = window.firebaseFns;
+        let snap = await getDocs(collection(window.firebaseDb, "machines"));
+        if (!snap.empty) {
+          let dbMachines = [];
+          snap.forEach(d => {
+            let data = d.data();
+            data.id = d.id;
+            dbMachines.push(data);
+          });
+          machines = dbMachines;
+          renderMachines();
+          renderAdminMachineList();
+        } else {
+          renderAdminMachineList();
+        }
+      } catch (e) { renderAdminMachineList(); }
+    }
+
+    function renderAdminMachineList() {
+      let el = document.getElementById('adminMachineList');
+      if (!el) return;
+      el.innerHTML = machines.map(m => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card); padding:6px; border-radius:4px; margin-bottom:4px;">
+          <span><b>${m.name}</b> (${m.series}) - UGX ${m.price.toLocaleString()}</span>
+          <div>
+            <button class="btn" style="padding:2px 6px; font-size:9px; background:var(--warning); color:#000;" onclick="adminEditMachine('${m.id}')">Edit</button>
+            <button class="btn" style="padding:2px 6px; font-size:9px; background:var(--danger); color:#fff;" onclick="adminDeleteMachine('${m.id}')">Del</button>
+          </div>
+        </div>
+      `).join('') || 'No custom machines in DB.';
+    }
+
+    function adminEditMachine(id) {
+      let m = machines.find(x => x.id === id);
+      if (m) {
+        document.getElementById('adminMachId').value = m.id;
+        document.getElementById('adminMachSeries').value = m.series;
+        document.getElementById('adminMachName').value = m.name;
+        document.getElementById('adminMachPrice').value = m.price;
+        document.getElementById('adminMachDaily').value = m.daily;
+        document.getElementById('adminMachImage').value = m.image;
+        document.getElementById('adminMachReqInvestors').value = m.requiredInvestors || 0;
+      }
+    }
+
+    async function adminSaveMachine() {
+      let id = document.getElementById('adminMachId').value.trim();
+      let series = document.getElementById('adminMachSeries').value;
+      let name = document.getElementById('adminMachName').value.trim();
+      let price = Number(document.getElementById('adminMachPrice').value);
+      let daily = Number(document.getElementById('adminMachDaily').value);
+      let image = document.getElementById('adminMachImage').value.trim();
+      let reqInv = Number(document.getElementById('adminMachReqInvestors').value) || 0;
+
+      if (!id || !name || !price || !daily || !image) {
+        alert('⚠️ Please fill out all machine fields.');
+        return;
+      }
+
+      let mObj = {
+        series, name, price, daily, image,
+        isFirstInSeries: id.endsWith('1'),
+        requiredInvestors: reqInv
+      };
+
+      try {
+        const { doc, setDoc } = window.firebaseFns;
+        await setDoc(doc(window.firebaseDb, "machines", id), mObj);
+        alert('✅ Machine saved successfully!');
+        loadMachinesFromDb();
+      } catch (e) { alert('Error saving machine: ' + e.message); }
+    }
+
+    async function adminDeleteMachine(id) {
+      if (!confirm('Are you sure you want to delete machine ' + id + '?')) return;
+      try {
+        const { doc, deleteDoc } = window.firebaseFns;
+        await deleteDoc(doc(window.firebaseDb, "machines", id));
+        machines = machines.filter(m => m.id !== id);
+        renderMachines();
+        renderAdminMachineList();
+        alert('🗑️ Machine deleted.');
+      } catch (e) { alert('Error deleting machine: ' + e.message); }
+    }
+     async function loadAnnouncementsList() {
       try {
         const { getDoc, collection, getDocs, doc } = window.firebaseFns;
         let snap = await getDoc(doc(window.firebaseDb, "settings", "broadcast"));
@@ -782,12 +884,10 @@
       try {
         const { sendPasswordResetEmail } = window.firebaseFns;
         await sendPasswordResetEmail(window.firebaseAuth, resetTargetEmail);
-        alert('✅ Password reset link has been dispatched to your email address.');
+        alert('✅ Password reset link dispatched to your email address.');
         closeModal('forgotPasswordModal');
         document.getElementById('resetStep1').style.display = 'block';
         document.getElementById('resetStep2').style.display = 'none';
-        document.getElementById('resetPhone').value = '';
-        document.getElementById('newResetPassword').value = '';
       } catch (error) {
         alert('Error updating password: ' + error.message);
       }
@@ -811,11 +911,10 @@
 
       try {
         const { collection, query, where, getDocs, createUserWithEmailAndPassword, setDoc, doc } = window.firebaseFns;
-        
         const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
-          alert('⚠️ This phone number is already registered.');
+          alert('⚠️ Phone number is already registered.');
           return;
         }
 
@@ -858,24 +957,21 @@
           return;
         }
         let userEmail = '';
-        querySnapshot.forEach((docSnap) => { 
-          let d = docSnap.data();
-          userEmail = d.email; 
-        });
+        querySnapshot.forEach((docSnap) => { userEmail = docSnap.data().email; });
 
         let userCredential = await signInWithEmailAndPassword(window.firebaseAuth, userEmail, password);
         currentUserId = userCredential.user.uid;
         await loadUserData();
       } catch (error) {
-        alert('Login Failed: Invalid phone number or password.');
+        alert('Login Failed: Invalid credentials.');
       }
     }
+
     async function loadUserData() {
       const { doc, getDoc } = window.firebaseFns;
       let docSnap = await getDoc(doc(window.firebaseDb, "users", currentUserId));
       if (docSnap.exists()) {
         let data = docSnap.data();
-        
         currentUserPhone = data.phone || '';
         balance = Number(data.balance) || 0;
         inviteCode = data.inviteCode || generateUniqueRefCode();
@@ -914,7 +1010,6 @@
 
         updateUI();
         renderMachines();
-        renderMilestones();
         renderTeamView();
       }
     }
@@ -924,18 +1019,9 @@
         const { collection, getDocs } = window.firebaseFns;
         let querySnapshot = await getDocs(collection(window.firebaseDb, "users"));
         
-        let totalUsers = 0;
-        let activeUsers = 0;
-        let dormantUsers = 0;
-        let pendingQueueHtml = '';
-        let activeUsersHtml = '';
-        let dormantUsersHtml = '';
-        let apologyQueueHtml = '';
-        
-        let overallTotalDeposits = 0;
-        let overallWeeklyDeposits = 0;
-        let overallTotalWithdrawals = 0;
-        let overallWeeklyWithdrawals = 0;
+        let totalUsers = 0, activeUsers = 0, dormantUsers = 0;
+        let pendingQueueHtml = '', pendingDepositsHtml = '', activeUsersHtml = '', dormantUsersHtml = '';
+        let overallTotalDeposits = 0, overallWeeklyDeposits = 0, overallTotalWithdrawals = 0, overallWeeklyWithdrawals = 0;
         
         let nowTime = new Date().getTime();
         let oneWeekMs = 7 * 24 * 60 * 60 * 1000;
@@ -948,68 +1034,54 @@
           let userInfoSnippet = `
             <div style="background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px; font-size:11px; display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <b>Phone:</b> ${uData.phone}<br>
-                <b>Email:</b> ${uData.email}<br>
+                <b>Phone:</b> ${uData.phone || 'N/A'}<br>
+                <b>Email:</b> ${uData.email || 'N/A'}<br>
                 <b>Balance:</b> UGX ${(Number(uData.balance)||0).toLocaleString()}
-              </div>
-              <div>
-                <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--danger); color:#fff;" onclick="adminDirectBanUser('${uData.phone}')">${uData.isBanned ? 'Unban' : 'Ban'}</button>
               </div>
             </div>
           `;
 
-          if (isUserActive) {
-            activeUsers++;
-            activeUsersHtml += userInfoSnippet;
-          } else {
-            dormantUsers++;
-            dormantUsersHtml += userInfoSnippet;
-          }
-
-          if (uData.isBanned && uData.apologyMessage) {
-            apologyQueueHtml += `
-              <div style="background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px; font-size:11px;">
-                <div><b>Phone:</b> ${uData.phone}</div>
-                <div style="color:var(--warning); margin:4px 0;"><b>Apology:</b> "${uData.apologyMessage}"</div>
-                <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--accent);" onclick="adminUnbanUser('${uData.phone}')">Approve & Unban</button>
-              </div>
-            `;
-          }
+          if (isUserActive) { activeUsers++; activeUsersHtml += userInfoSnippet; } 
+          else { dormantUsers++; dormantUsersHtml += userInfoSnippet; }
 
           if (uData.deposits && Array.isArray(uData.deposits)) {
-            uData.deposits.forEach(dep => {
+            uData.deposits.forEach((dep, depIndex) => {
               let dAmount = Number(dep.rawAmt) || 0;
-              if (dAmount === 0 && dep.amt) {
-                let cleaned = dep.amt.replace(/[^0-9]/g, '');
-                dAmount = Number(cleaned) || 0;
+              if (dep.status === 'Approved' || !dep.status) {
+                overallTotalDeposits += dAmount;
+                if (dep.timestamp && (nowTime - dep.timestamp) <= oneWeekMs) overallWeeklyDeposits += dAmount;
               }
-              overallTotalDeposits += dAmount;
-              if (dep.timestamp && (nowTime - dep.timestamp) <= oneWeekMs) {
-                overallWeeklyDeposits += dAmount;
+
+              if (dep.status === 'Pending') {
+                pendingDepositsHtml += `
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px;">
+                    <div>
+                      <b>${uData.phone}</b><br>
+                      <span style="color:var(--accent); font-weight:700;">UGX ${dAmount.toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                      <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--accent);" onclick="adminApproveDeposit('${docSnap.id}', ${depIndex})">Approve</button>
+                      <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--danger); color:#fff;" onclick="adminRejectDeposit('${docSnap.id}', ${depIndex})">Reject</button>
+                    </div>
+                  </div>
+                `;
               }
             });
           }
-
           if (uData.withdrawals && Array.isArray(uData.withdrawals)) {
             uData.withdrawals.forEach((w, wIndex) => {
               let wAmount = Number(w.rawAmount) || 0;
-              if (wAmount === 0 && w.amt) {
-                let cleaned = w.amt.replace(/[^0-9]/g, '');
-                wAmount = Number(cleaned) || 0;
-              }
-              
               if (w.status === 'Succeed' || w.status === 'Pending') {
                 overallTotalWithdrawals += wAmount;
-                if (w.timestamp && (nowTime - w.timestamp) <= oneWeekMs) {
-                  overallWeeklyWithdrawals += wAmount;
-                }
+                if (w.timestamp && (nowTime - w.timestamp) <= oneWeekMs) overallWeeklyWithdrawals += wAmount;
               }
+
               if (w.status === 'Pending') {
                 pendingQueueHtml += `
                   <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px;">
                     <div>
                       <b>${uData.phone}</b><br>
-                      <span style="color:var(--danger); font-weight:700;">${w.amt}</span>
+                      <span style="color:var(--danger); font-weight:700;">UGX ${wAmount.toLocaleString()}</span>
                     </div>
                     <div style="display:flex; gap:4px;">
                       <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--accent);" onclick="adminApproveWithdrawal('${docSnap.id}', ${wIndex})">Approve</button>
@@ -1021,8 +1093,7 @@
             });
           }
         });
-
-        document.getElementById('adminStatTotalUsers').innerText = totalUsers;
+       document.getElementById('adminStatTotalUsers').innerText = totalUsers;
         document.getElementById('adminStatActiveUsers').innerText = activeUsers;
         document.getElementById('adminStatDormantUsers').innerText = dormantUsers;
         document.getElementById('adminStatTotalDeposits').innerText = 'UGX ' + overallTotalDeposits.toLocaleString();
@@ -1030,122 +1101,130 @@
         document.getElementById('adminStatTotalWithdrawals').innerText = 'UGX ' + overallTotalWithdrawals.toLocaleString();
         document.getElementById('adminStatWeeklyWithdrawals').innerText = 'UGX ' + overallWeeklyWithdrawals.toLocaleString();
 
-        document.getElementById('adminActiveUsersList').innerHTML = activeUsersHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No active users found.</div>';
-        document.getElementById('adminDormantUsersList').innerHTML = dormantUsersHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No dormant users found.</div>';
-        document.getElementById('adminApologyQueue').innerHTML = apologyQueueHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No pending apology requests.</div>';
+        document.getElementById('adminActiveUsersList').innerHTML = activeUsersHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No active users.</div>';
+        document.getElementById('adminDormantUsersList').innerHTML = dormantUsersHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No dormant users.</div>';
         document.getElementById('adminWithdrawalsQueue').innerHTML = pendingQueueHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No pending withdrawals.</div>';
-        
-        loadAllDepositsLog(querySnapshot);
+        document.getElementById('adminPendingDepositsQueue').innerHTML = pendingDepositsHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No pending deposit requests.</div>';
       } catch (e) {
         console.error("Admin Load Error:", e);
       }
     }
-    
-    function loadAllDepositsLog(querySnapshot) {
-      let depositsHtml = '';
-      querySnapshot.forEach((docSnap) => {
-        let uData = docSnap.data();
-        if (uData.deposits && Array.isArray(uData.deposits)) {
-          uData.deposits.forEach(dep => {
-            depositsHtml += `
-              <div style="background:var(--bg); padding:8px; border-radius:6px; margin-bottom:6px; font-size:11px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border);">
-                <div>
-                  <b>Phone:</b> ${uData.phone}<br>
-                  <span style="color:var(--mut);">${dep.desc || 'Deposit'}</span> ${dep.senderPhone ? `<br><small style="color:var(--accent);">Sender: ${dep.senderPhone}</small>` : ''}
-                </div>
-                <div style="color:var(--accent); font-weight:700;">${dep.amt || ''}</div>
-              </div>
-            `;
-          });
-        }
-      });
-      document.getElementById('adminAllDepositsList').innerHTML = depositsHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No deposits recorded yet.</div>';
-    }
 
     async function adminCheckUserStatus() {
-      let phone = document.getElementById('adminBanPhoneInput').value.trim();
-      if (!phone.match(/^07[0-9]{8}$/)) {
-        alert('Enter a valid 10-digit phone number.');
+      let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
+      let resEl = document.getElementById('adminUserLookupResult');
+      if (!rawPhone.match(/^07[0-9]{8}$/)) {
+        resEl.innerText = "⚠️ Please enter a valid 10-digit phone number.";
         return;
       }
       try {
         const { collection, query, where, getDocs } = window.firebaseFns;
-        let q = query(collection(window.firebaseDb, "users"), where("phone", "==", phone));
-        let snap = await getDocs(q);
+        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+        const snap = await getDocs(q);
         if (snap.empty) {
-          document.getElementById('adminUserLookupResult').innerHTML = `<span style="color:var(--danger);">❌ Number is NOT registered in the system.</span>`;
-          return;
+          resEl.innerText = "❌ User not found.";
+        } else {
+          snap.forEach(d => {
+            let u = d.data();
+            resEl.innerHTML = `
+              <b>User:</b> ${u.phone}<br>
+              <b>Email:</b> ${u.email}<br>
+              <b>Status:</b> ${u.isBanned ? '<span style="color:var(--danger)">BANNED</span>' : '<span style="color:var(--accent)">ACTIVE</span>'}<br>
+              <b>Apology Message:</b> ${u.apologyMessage || 'None'}
+            `;
+          });
         }
-        snap.forEach(d => {
-          let dat = d.data();
-          let statusText = dat.isBanned ? '<span style="color:var(--danger);">Banned 🔒</span>' : '<span style="color:var(--accent);">Active / Registered ✅</span>';
-          document.getElementById('adminUserLookupResult').innerHTML = `Found! Status: ${statusText}`;
-        });
-      } catch(e) { alert('Error: ' + e.message); }
+      } catch (e) { resEl.innerText = "Error: " + e.message; }
     }
 
     async function adminBanUserAction() {
-      let phone = document.getElementById('adminBanPhoneInput').value.trim();
-      if (!phone.match(/^07[0-9]{8}$/)) {
-        alert('Enter a valid 10-digit phone number.');
+      let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
+      if (!rawPhone.match(/^07[0-9]{8}$/)) {
+        alert("⚠️ Please enter a valid 10-digit phone number.");
         return;
       }
       try {
         const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
-        let q = query(collection(window.firebaseDb, "users"), where("phone", "==", phone));
-        let snap = await getDocs(q);
+        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+        const snap = await getDocs(q);
         if (snap.empty) {
-          alert('⚠️ Number is not registered in the system.');
-          return;
+          alert("❌ User not found.");
+        } else {
+          snap.forEach(async (d) => {
+            let u = d.data();
+            let newBanState = !u.isBanned;
+            await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: newBanState });
+            alert(`User status updated to: ${newBanState ? 'BANNED' : 'ACTIVE'}`);
+            adminCheckUserStatus();
+          });
         }
-        snap.forEach(async (d) => {
-          await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: true });
-          alert(`🔒 Account (${phone}) has been banned successfully.`);
-          loadAdminDashboardData();
-        });
-      } catch(e) { alert('Error: ' + e.message); }
+      } catch (e) { alert("Error: " + e.message); }
     }
 
-    async function adminDirectBanUser(phone) {
+    async function adminResetUserPassword() {
+      let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
+      if (!rawPhone.match(/^07[0-9]{8}$/)) {
+        alert("⚠️ Please enter a valid 10-digit phone number.");
+        return;
+      }
       try {
-        const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
-        let q = query(collection(window.firebaseDb, "users"), where("phone", "==", phone));
-        let snap = await getDocs(q);
-        snap.forEach(async (d) => {
-          let currentBan = !!d.data().isBanned;
-          await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: !currentBan });
-          alert(`Account ban status toggled for ${phone}.`);
-          loadAdminDashboardData();
-        });
-      } catch(e) { alert('Error: ' + e.message); }
-    }
-
-    async function adminUnbanUser(phone) {
-      try {
-        const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
-        let q = query(collection(window.firebaseDb, "users"), where("phone", "==", phone));
-        let snap = await getDocs(q);
-        snap.forEach(async (d) => {
-          await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: false, apologyMessage: '' });
-          alert(`✅ Account (${phone}) has been unbanned successfully!`);
-          loadAdminDashboardData();
-        });
-      } catch(e) { alert('Error: ' + e.message); }
+        const { collection, query, where, getDocs, sendPasswordResetEmail } = window.firebaseFns;
+        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+        const snap = await getDocs(q);
+        if (snap.empty) {
+          alert("❌ User not found.");
+        } else {
+          let uEmail = '';
+          snap.forEach(d => { uEmail = d.data().email; });
+          if (uEmail) {
+            await sendPasswordResetEmail(window.firebaseAuth, uEmail);
+            alert(`✅ Password reset link sent to user's email: ${uEmail}`);
+          }
+        }
+      } catch (e) { alert("Error: " + e.message); }
     }
 
     async function submitUserApology() {
       let msg = document.getElementById('userApologyInput').value.trim();
-      if (!msg) {
-        alert('Please write your apology message.');
-        return;
-      }
+      if (!msg) return alert('⚠️ Please enter an apology message.');
       try {
-        const { updateDoc, doc } = window.firebaseFns;
+        const { doc, updateDoc } = window.firebaseFns;
         await updateDoc(doc(window.firebaseDb, "users", currentUserId), { apologyMessage: msg });
-        alert('✅ Apology request submitted to admin successfully.');
-        document.getElementById('userApologyInput').value = '';
-      } catch(e) { alert('Error: ' + e.message); }
+        alert('✅ Apology submitted to admin for review.');
+      } catch (e) { alert('Error: ' + e.message); }
     }
+
+    async function adminSendBroadcast() {
+      let msg = document.getElementById('adminBroadcastInput').value.trim();
+      if (!msg) return alert('⚠️ Please type a message.');
+      try {
+        const { doc, setDoc, collection, addDoc } = window.firebaseFns;
+        await setDoc(doc(window.firebaseDb, "settings", "broadcast"), { message: msg });
+        await addDoc(collection(window.firebaseDb, "announcements"), { message: msg, date: new Date().toLocaleDateString() });
+        alert('📢 Broadcast dispatched!');
+        document.getElementById('broadcastText').innerText = msg;
+        document.getElementById('broadcastBanner').style.display = 'block';
+      } catch (e) { alert('Error broadcasting: ' + e.message); }
+    }
+
+    async function adminApproveWithdrawal(targetUserId, wIndex) {
+      try {
+        const { doc, getDoc, updateDoc } = window.firebaseFns;
+        let uRef = doc(window.firebaseDb, "users", targetUserId);
+        let snap = await getDoc(uRef);
+        if (snap.exists()) {
+          let uData = snap.data();
+          let wList = uData.withdrawals || [];
+          if (wList[wIndex]) {
+            wList[wIndex].status = 'Succeed';
+            await updateDoc(uRef, { withdrawals: wList });
+            alert('✅ Withdrawal approved!');
+            loadAdminDashboardData();
+          }
+        }
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
     async function adminRejectWithdrawal(targetUserId, wIndex) {
       try {
         const { doc, getDoc, updateDoc } = window.firebaseFns;
@@ -1157,32 +1236,110 @@
           if (wList[wIndex]) {
             let refundAmount = wList[wIndex].rawAmount || 0;
             wList[wIndex].status = 'Cancelled';
-            let currentBal = Number(uData.balance) || 0;
-            await updateDoc(uRef, { 
-              balance: currentBal + refundAmount,
-              withdrawals: wList 
-            });
-            alert('🚫 Withdrawal rejected and funds refunded to user balance.');
+            await updateDoc(uRef, { balance: (Number(uData.balance) || 0) + refundAmount, withdrawals: wList });
+            alert('🚫 Withdrawal rejected and refunded.');
             loadAdminDashboardData();
           }
         }
       } catch (e) { alert('Error: ' + e.message); }
     }
 
-    async function adminSendBroadcast() {
-      let msg = document.getElementById('adminBroadcastInput').value.trim();
-      if (!msg) return alert('Enter announcement text.');
+    async function adminApproveDeposit(targetUserId, depIndex) {
       try {
-        const { setDoc, doc, addDoc, collection } = window.firebaseFns;
-        await setDoc(doc(window.firebaseDb, "settings", "broadcast"), { message: msg });
-        await addDoc(collection(window.firebaseDb, "announcements"), { 
-          message: msg, 
-          date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString() 
-        });
-        alert('📢 Broadcast announcement sent to all users successfully!');
-        document.getElementById('adminBroadcastInput').value = '';
-        loadAnnouncementsList();
+        const { doc, getDoc, updateDoc } = window.firebaseFns;
+        let uRef = doc(window.firebaseDb, "users", targetUserId);
+        let snap = await getDoc(uRef);
+        if (snap.exists()) {
+          let uData = snap.data();
+          let dList = uData.deposits || [];
+          if (dList[depIndex]) {
+            let depAmount = Number(dList[depIndex].rawAmt) || 0;
+            dList[depIndex].status = 'Approved';
+            await updateDoc(uRef, { balance: (Number(uData.balance) || 0) + depAmount, hasDeposited: true, deposits: dList });
+            alert(`✅ Deposit approved! UGX ${depAmount.toLocaleString()} credited.`);
+            loadAdminDashboardData();
+          }
+        }
       } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    async function adminRejectDeposit(targetUserId, depIndex) {
+      try {
+        const { doc, getDoc, updateDoc } = window.firebaseFns;
+        let uRef = doc(window.firebaseDb, "users", targetUserId);
+        let snap = await getDoc(uRef);
+        if (snap.exists()) {
+          let uData = snap.data();
+          let dList = uData.deposits || [];
+          if (dList[depIndex]) {
+            dList[depIndex].status = 'Rejected';
+            await updateDoc(uRef, { deposits: dList });
+            alert('🚫 Deposit request rejected.');
+            loadAdminDashboardData();
+          }
+        }
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+    
+    function selectQuickDeposit(amount) {
+      document.getElementById('depositAmt').value = amount;
+    }
+
+    function selectDepositNetwork(net) {
+      selectedNetwork = net;
+      document.getElementById('netAirtel').className = (net === 'Airtel') ? 'network-card active' : 'network-card';
+      document.getElementById('netMTN').className = (net === 'MTN') ? 'network-card active' : 'network-card';
+    }
+
+    async function submitFinalDeposit() {
+      const amount = Number(document.getElementById('depositAmt').value);
+      const phone = document.getElementById('depositPhoneInput').value.trim();
+
+      if (!amount || amount < 5000) {
+        alert("⚠️ Please enter a valid deposit amount (min. UGX 5,000).");
+        return;
+      }
+      if (!phone.match(/^07[0-9]{8}$/)) {
+        alert("⚠️ Please enter a valid 10-digit phone number.");
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/deposit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount, phone, network: selectedNetwork })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          alert("✅ Mobile Payment Prompt Sent! Transaction ID: " + result.transactionId);
+        } else {
+          deposits.unshift({
+            desc: `Deposit via ${selectedNetwork}`,
+            amt: `+UGX ${amount.toLocaleString()}`,
+            rawAmt: amount,
+            status: 'Pending',
+            timestamp: new Date().getTime()
+          });
+          await saveUserData();
+          updateUI();
+          alert("📌 Deposit request submitted for admin review!");
+        }
+        closeModal('depositModal');
+      } catch (err) {
+        deposits.unshift({
+          desc: `Deposit via ${selectedNetwork}`,
+          amt: `+UGX ${amount.toLocaleString()}`,
+          rawAmt: amount,
+          status: 'Pending',
+          timestamp: new Date().getTime()
+        });
+        await saveUserData();
+        updateUI();
+        alert("📌 Request recorded! Deposit pending review.");
+        closeModal('depositModal');
+      }
     }
 
     function processWithdrawalsTimeout() {
@@ -1190,8 +1347,7 @@
       let updated = false;
       withdrawals.forEach(w => {
         if (w.status === 'Pending' && w.timestamp) {
-          let elapsedHours = (now - w.timestamp) / (1000 * 60 * 60);
-          if (elapsedHours >= 24) {
+          if ((now - w.timestamp) / (1000 * 60 * 60) >= 24) {
             w.status = 'Succeed';
             updated = true;
           }
@@ -1221,9 +1377,8 @@
         } else {
           let lastCheckDate = new Date(lastCheck);
           let currentDate = new Date(now);
-          
-          if (currentDate.getDate() !== lastCheckDate.getDate() || currentDate.getMonth() !== lastCheckDate.getMonth() || currentDate.getFullYear() !== lastCheckDate.getFullYear()) {
-            if (currentDate.getHours() >= 0 && m.daysCounted < m.daysTotal) {
+          if (currentDate.getDate() !== lastCheckDate.getDate()) {
+            if (m.daysCounted < m.daysTotal) {
               m.daysCounted += 1;
               m.accrued = m.daysCounted * m.daily;
               m.lastCheckTime = now;
@@ -1240,37 +1395,11 @@
       const { doc, updateDoc } = window.firebaseFns;
       try {
         await updateDoc(doc(window.firebaseDb, "users", currentUserId), {
-          balance: Number(balance) || 0, 
-          vipTier, 
-          teamCount: Number(teamCount) || 0, 
-          deposits, 
-          withdrawals,
-          investmentsList, 
-          activeMachines, 
-          lastRewardDate, 
-          hasDeposited, 
-          hasPurchased, 
-          claimedMilestones: claimedMilestones
+          balance: Number(balance) || 0, vipTier, teamCount: Number(teamCount) || 0,
+          deposits, withdrawals, investmentsList, activeMachines, lastRewardDate,
+          hasDeposited, hasPurchased, claimedMilestones
         });
-      } catch (error) {
-        console.error("Error saving data: ", error);
-      }
-    }
-
-    async function checkAndUpdateReferrerTeam() {
-      if (referredByCode && hasDeposited && hasPurchased) {
-        const { collection, query, where, getDocs, updateDoc, doc, increment } = window.firebaseFns;
-        try {
-          let q = query(collection(window.firebaseDb, "users"), where("inviteCode", "==", referredByCode));
-          let snap = await getDocs(q);
-          snap.forEach(async (referrerDoc) => {
-            await updateDoc(doc(window.firebaseDb, "users", referrerDoc.id), {
-              teamCount: increment(1)
-            });
-          });
-          referredByCode = ''; 
-        } catch(e) { console.error(e); }
-      }
+      } catch (error) { console.error("Save error: ", error); }
     }
 
     async function logout() {
@@ -1310,7 +1439,7 @@
         let duration = seriesDurations[m.series] || 30;
         let totalIncome = m.daily * duration;
         return `
-          <div onclick="openMachineDetail('${m.id}')" style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); display:flex; gap:14px; align-items:center; cursor:pointer; transition: border-color 0.2s;">
+          <div onclick="openMachineDetail('${m.id}')" style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); display:flex; gap:14px; align-items:center; cursor:pointer;">
             <img src="${m.image}" alt="${m.name}" style="width:110px; height:85px; object-fit:cover; border-radius:8px; flex-shrink:0;">
             <div style="flex:1;">
               <div style="font-weight:800; font-size:13px; margin-bottom:3px;">${m.name}</div>
@@ -1339,33 +1468,26 @@
       document.getElementById('detModalTotal').innerText = 'UGX ' + totalIncome.toLocaleString();
       
       let rentBtn = document.getElementById('detModalRentBtn');
-      rentBtn.onclick = () => {
-        closeModal('machineDetailModal');
-        buyMachine(m.id);
-      };
+      rentBtn.onclick = () => { closeModal('machineDetailModal'); buyMachine(m.id); };
       openModal('machineDetailModal');
     }
-
+ 
     function buyMachine(id) {
       let m = machines.find(item => item.id === id);
       if (!m) return;
 
-      if (m.series === 'VIP' && teamCount < m.requiredInvestors) {
-        alert(`⚠️ VIP Restriction: You need at least ${m.requiredInvestors} team investors to rent the ${m.name}. Current investors: ${teamCount}.`);
+      if (m.series === 'VIP' && teamCount < (m.requiredInvestors || 0)) {
+        alert(`⚠️ VIP Restriction: Requires at least ${m.requiredInvestors} team members.`);
         return;
       }
 
       let activeOfThisType = activeMachines.filter(item => item.id === m.id && !item.claimed);
-      if (m.isFirstInSeries) {
-        if (activeOfThisType.length >= 2) {
-          alert(`⚠️ Limit Reached: You already have 2 active instances of (${m.name}). You can re-purchase it after their cycles end.`);
-          return;
-        }
-      } else {
-        if (activeOfThisType.length >= 1) {
-          alert(`⚠️ Limit Reached: You already have an active instance of (${m.name}). You can re-purchase it after its cycle ends.`);
-          return;
-        }
+      if (m.isFirstInSeries && activeOfThisType.length >= 2) {
+        alert(`⚠️ Limit Reached: Maximum 2 active instances allowed for ${m.name}.`);
+        return;
+      } else if (!m.isFirstInSeries && activeOfThisType.length >= 1) {
+        alert(`⚠️ Limit Reached: You already have an active instance of ${m.name}.`);
+        return;
       }
 
       if (balance < m.price) { alert('Insufficient wallet balance.'); return; }
@@ -1376,7 +1498,7 @@
       let nowTime = new Date().getTime();
 
       activeMachines.push({
-        id: m.id, name: m.name + (m.series === 'VIP' ? ' (VIP 24H Cycle)' : ''), series: m.series, price: m.price, daily: m.daily,
+        id: m.id, name: m.name, series: m.series, price: m.price, daily: m.daily,
         daysTotal: duration, daysCounted: 0, accrued: 0, totalCycle: m.daily * duration, purchaseTime: nowTime, lastCheckTime: nowTime, claimed: false
       });
 
@@ -1384,7 +1506,6 @@
       deposits.unshift({ desc: 'Rented ' + m.name, amt: '-UGX ' + m.price.toLocaleString(), rawAmt: -m.price, timestamp: nowTime });
 
       saveUserData();
-      checkAndUpdateReferrerTeam();
       updateUI();
       alert('Successfully deployed ' + m.name + '!');
     }
@@ -1398,16 +1519,12 @@
         if (earningsToClaim > 0) {
           balance = Number(balance) + Number(earningsToClaim);
           machine.accrued = 0;
-          if (machine.daysCounted >= machine.daysTotal) {
-            machine.claimed = true;
-          }
+          if (machine.daysCounted >= machine.daysTotal) machine.claimed = true;
           deposits.unshift({ desc: `VIP Income (${machine.name})`, amt: '+UGX ' + earningsToClaim.toLocaleString(), rawAmt: earningsToClaim, timestamp: new Date().getTime() });
           saveUserData();
           updateUI();
-          alert(`Successfully received UGX ${earningsToClaim.toLocaleString()} into your balance!`);
-        } else {
-          alert('No daily VIP income available to receive right now.');
-        }
+          alert(`Claimed UGX ${earningsToClaim.toLocaleString()} into your balance!`);
+        } else { alert('No VIP earnings ready yet.'); }
       } else {
         if ((machine.daysCounted || 0) >= machine.daysTotal && !machine.claimed) {
           earningsToClaim = machine.totalCycle;
@@ -1416,10 +1533,8 @@
           deposits.unshift({ desc: `Cycle Income (${machine.name})`, amt: '+UGX ' + earningsToClaim.toLocaleString(), rawAmt: earningsToClaim, timestamp: new Date().getTime() });
           saveUserData();
           updateUI();
-          alert(`Cycle completed! Successfully received UGX ${earningsToClaim.toLocaleString()} into your balance! You can now re-purchase this machine.`);
-        } else {
-          alert('Normal machines credit their earnings automatically at 12:00 AM daily and can be claimed upon completion.');
-        }
+          alert(`Cycle completed! Earned UGX ${earningsToClaim.toLocaleString()}!`);
+        } else { alert('Machine earnings process daily and can be claimed upon completion.'); }
       }
     }
 
@@ -1427,140 +1542,11 @@
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
     
     function openDepositModal() {
-      document.getElementById('depositViewA').style.display = 'block';
-      document.getElementById('depositViewB').style.display = 'none';
-      document.getElementById('depositModalTitle').innerText = 'Deposit Funds - Step 1';
       document.getElementById('depositPhoneInput').value = currentUserPhone || '';
       document.getElementById('depositAmt').value = '';
       openModal('depositModal');
     }
-    
-// 1. Explicitly bind all UI navigation and modal functions globally
-window.switchAuthTab = function(tabName) {
-    const loginForm = document.getElementById('loginFormSection');
-    const registerForm = document.getElementById('registerFormSection');
-    if (loginForm && registerForm) {
-        if (tabName === 'login') {
-            loginForm.style.display = 'block';
-            registerForm.style.display = 'none';
-        } else {
-            loginForm.style.display = 'none';
-            registerForm.style.display = 'block';
-        }
-    }
-};
-
-window.openModal = function(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'flex';
-};
-
-window.closeModal = function(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'none';
-};
-
-// 2. Explicitly bind network and quick deposit selectors
-if (typeof window.selectedNetwork === 'undefined') {
-    window.selectedNetwork = 'MTN';
-}
-
-window.selectDepositNetwork = function(network) {
-    window.selectedNetwork = network;
-    const airtelBtn = document.getElementById('airtelBtn');
-    const mtnBtn = document.getElementById('mtnBtn');
-    
-    if (airtelBtn && mtnBtn) {
-        if (network === 'Airtel') {
-            airtelBtn.style.borderColor = '#10B981';
-            mtnBtn.style.borderColor = 'transparent';
-        } else {
-            mtnBtn.style.borderColor = '#10B981';
-            airtelBtn.style.borderColor = 'transparent';
-        }
-    }
-};
-
-window.selectQuickDeposit = function(amount) {
-    let amtInput = document.getElementById('depositAmt');
-    if (amtInput) {
-        amtInput.value = amount;
-    }
-};
-
-// 3. Robust deposit function with safe JSON response handling
-window.proceedToDepositSummary = async function() {
-    let phone = document.getElementById('depositPhoneInput').value.trim();
-    let amt = parseFloat(document.getElementById('depositAmt').value);
-
-    let currentUserId = (typeof userId !== 'undefined' && userId) ? userId : 
-                        (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) ? currentUser.uid : 
-                        localStorage.getItem('userId') || localStorage.getItem('canaan_uid') || localStorage.getItem('uid') || 'test_user_staging_id';
-
-    if (!phone.match(/^07[0-9]{8}$/)) {
-        alert('⚠️ Please enter a valid 10-digit phone number starting with 07.');
-        return;
-    }
-    if (isNaN(amt) || amt <= 0) {
-        alert('⚠️ Please enter a valid deposit amount.');
-        return;
-    }
-
-    alert('📲 Sending automated MTN MoMo payment prompt to ' + phone + '...');
-
-    try {
-        let response = await fetch('/.netlify/functions/deposit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                amount: amt, 
-                phone: phone,
-                uid: currentUserId,
-                network: window.selectedNetwork || 'MTN'
-            })
-        });
-
-        // Safely check if the response is valid JSON before parsing
-        let responseText = await response.text();
-        let result;
-        try {
-            result = JSON.parse(responseText);
-        } catch (e) {
-            console.error("Non-JSON response from server:", responseText);
-            alert('⚠️ Server returned an invalid response. Check your Netlify function deployment or environment variables.');
-            return;
-        }
-
-        if (result.success) {
-            balance = Number(balance || 0) + Number(amt);
-            hasDeposited = true;
-            if (typeof deposits !== 'undefined') {
-                deposits.unshift({ 
-                    desc: `Automatic Deposit (${window.selectedNetwork || 'MTN'} MoMo)`, 
-                    amt: '+UGX ' + amt.toLocaleString(), 
-                    rawAmt: amt, 
-                    senderPhone: phone,
-                    timestamp: new Date().getTime() 
-                });
-            }
-
-            if (typeof saveUserData === 'function') saveUserData();
-            if (typeof checkAndUpdateReferrerTeam === 'function') checkAndUpdateReferrerTeam();
-            if (typeof updateUI === 'function') updateUI();
-            if (typeof closeModal === 'function') closeModal('depositModal');
-            
-            alert('✅ Payment successful and balance updated!');
-        } else {
-            alert('📲 ' + (result.message || result.error || 'Please check your phone and enter your Mobile Money PIN.'));
-        }
-    } catch (err) {
-        console.error('Deposit connection error:', err);
-        alert('⚠️ Network error connecting to deposit service. Make sure your Netlify functions are deployed.');
-    }
-};
-
-
-      function calculateWithdrawFee() {
+    function calculateWithdrawFee() {
       let val = parseFloat(document.getElementById('withdrawAmt').value) || 0;
       let calcEl = document.getElementById('withdrawFeeCalc');
       if (val <= 0) return calcEl.style.display = 'none';
@@ -1570,24 +1556,18 @@ window.proceedToDepositSummary = async function() {
 
     function confirmWithdraw() {
       if (!hasDeposited || !hasPurchased) {
-        alert('⚠️ Withdrawal restricted! You must make a deposit and rent at least one machine before withdrawing your funds/welcome bonus.');
+        alert('⚠️ Withdrawal restricted! Make a deposit and rent at least one machine before withdrawing.');
         return;
       }
 
       let val = parseFloat(document.getElementById('withdrawAmt').value);
-      if (isNaN(val) || val < 5000) {
-        alert('⚠️ Minimum withdrawal amount is strictly UGX 5,000.');
-        return;
-      }
+      if (isNaN(val) || val < 5000) { alert('⚠️ Minimum withdrawal amount is UGX 5,000.'); return; }
       if (val > balance) return alert('Insufficient balance.');
       
       balance = Number(balance) - Number(val);
       withdrawals.unshift({ 
-        desc: 'Withdrawal', 
-        amt: '-UGX ' + val.toLocaleString(), 
-        rawAmount: val,
-        status: 'Pending',
-        timestamp: new Date().getTime()
+        desc: 'Withdrawal', amt: '-UGX ' + val.toLocaleString(), rawAmount: val,
+        status: 'Pending', timestamp: new Date().getTime()
       });
       
       closeModal('withdrawModal');
@@ -1603,7 +1583,7 @@ window.proceedToDepositSummary = async function() {
         item.status = 'Cancelled';
         saveUserData();
         updateUI();
-        alert(`Withdrawal request cancelled. UGX ${item.rawAmount.toLocaleString()} has been refunded to your account balance.`);
+        alert(`Withdrawal cancelled. UGX ${item.rawAmount.toLocaleString()} refunded.`);
       }
     }
 
@@ -1631,16 +1611,6 @@ window.proceedToDepositSummary = async function() {
       updateUI();
     }
 
-    function renderMilestones() {
-      let list = document.getElementById('milestoneList');
-      if (!list) return;
-      list.innerHTML = milestones.map(m => `
-        <div style="background:var(--bg); padding:10px; border-radius:8px; margin-bottom:8px; font-size:11px;">
-          <b>${m.level} Machines:</b> Requires at least <b>${m.target}</b> team investors.
-        </div>
-      `).join('');
-    }
-
     function renderTeamView() {
       document.getElementById('refLinkText').value = window.location.origin + window.location.pathname + '?ref=' + inviteCode;
       document.getElementById('teamMembersCount').innerText = Number(teamCount) || 0;
@@ -1652,8 +1622,7 @@ window.proceedToDepositSummary = async function() {
     }
 
     function updateUI() {
-      let safeBalance = Number(balance);
-      if (isNaN(safeBalance)) safeBalance = 0;
+      let safeBalance = Number(balance) || 0;
 
       document.querySelectorAll('.userBalanceEl').forEach(el => el.innerText = 'UGX ' + safeBalance.toLocaleString());
       let headerEl = document.getElementById('userBalanceHeader');
@@ -1669,12 +1638,7 @@ window.proceedToDepositSummary = async function() {
         if (currentRecordTab === 'active') {
           container.innerHTML = activeMachines.map((m, index) => {
             let daysLeft = m.daysTotal - m.daysCounted;
-            let showReceiveBtn = false;
-            if (m.series === 'VIP' && (m.accrued || 0) > 0) {
-              showReceiveBtn = true;
-            } else if (m.series !== 'VIP' && (m.daysCounted || 0) >= m.daysTotal && !m.claimed) {
-              showReceiveBtn = true;
-            }
+            let showReceiveBtn = (m.series === 'VIP' && (m.accrued || 0) > 0) || (m.series !== 'VIP' && m.daysCounted >= m.daysTotal && !m.claimed);
 
             return `
               <div style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); margin-bottom:10px;">
@@ -1701,14 +1665,9 @@ window.proceedToDepositSummary = async function() {
           }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No active machines.</div>';
         } else if (currentRecordTab === 'withdrawals') {
           container.innerHTML = withdrawals.map((item, index) => {
-            let statusMarkup = '';
-            if (item.status === 'Pending') {
-              statusMarkup = `<div style="font-size:11px; color:#f59e0b; font-weight:600; text-align:right;">Pending<br><span style="color:#ef4444; cursor:pointer; text-decoration:underline;" onclick="cancelWithdrawal(${index})">Cancel</span></div>`;
-            } else if (item.status === 'Succeed') {
-              statusMarkup = `<div style="font-size:11px; color:var(--accent); font-weight:600; text-align:right;">Succeed</div>`;
-            } else if (item.status === 'Cancelled') {
-              statusMarkup = `<div style="font-size:11px; color:var(--mut); text-align:line-through; text-align:right;">Cancelled</div>`;
-            }
+            let statusMarkup = item.status === 'Pending' ? `<div style="font-size:11px; color:#f59e0b; font-weight:600; text-align:right;">Pending<br><span style="color:#ef4444; cursor:pointer; text-decoration:underline;" onclick="cancelWithdrawal(${index})">Cancel</span></div>` :
+                               item.status === 'Succeed' ? `<div style="font-size:11px; color:var(--accent); font-weight:600; text-align:right;">Succeed</div>` :
+                               `<div style="font-size:11px; color:var(--mut); text-align:line-through; text-align:right;">Cancelled</div>`;
 
             return `
               <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
@@ -1719,18 +1678,30 @@ window.proceedToDepositSummary = async function() {
                 <div>${statusMarkup}</div>
               </div>
             `;
-          }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No withdrawal records.</div>';
-        } else {
-          let data = currentRecordTab === 'deposits' ? deposits : investmentsList;
-          container.innerHTML = data.map(item => `
-            <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; font-size:11px;">
-              <span>${item.desc || item.name} ${item.senderPhone ? `<br><small style="color:var(--mut);">Sender: ${item.senderPhone}</small>` : ''}</span>
-              <b style="color:var(--accent);">${item.amt || ('UGX ' + item.price.toLocaleString())}</b>
+          }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No withdrawal history.</div>';
+        } else if (currentRecordTab === 'deposits') {
+          container.innerHTML = deposits.map(item => `
+            <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+              <div>
+                <div style="font-weight:600; color:var(--text);">${item.desc}</div>
+                <small style="color:var(--mut);">${new Date(item.timestamp || Date.now()).toLocaleDateString()}</small>
+              </div>
+              <b style="color:var(--accent);">${item.amt}</b>
             </div>
-          `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No records.</div>';
+          `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No deposit history.</div>';
+        } else if (currentRecordTab === 'investments') {
+          container.innerHTML = investmentsList.map(item => `
+            <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+              <div>
+                <div style="font-weight:600; color:var(--text);">${item.name}</div>
+                <div style="color:var(--mut);">Daily: UGX ${item.daily.toLocaleString()}</div>
+              </div>
+              <b style="color:var(--text);">UGX ${item.price.toLocaleString()}</b>
+            </div>
+          `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No investment history.</div>';
         }
       }
     }
   </script>
 </body>
-</html>
+</html>  
