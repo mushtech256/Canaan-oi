@@ -343,6 +343,75 @@
       <div class="nav-i" onclick="goTo('profile')">Profile</div>
     </nav>
   </div>
+<!-- DEPOSIT MODAL -->
+<div id="depositModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width: 420px; padding: 20px;">
+    
+    <!-- STEP 1: INITIAL DEPOSIT FORM -->
+    <div id="depositStep1">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+        <span style="font-weight: 800; font-size: 16px;">Deposit Funds</span>
+        <span onclick="closeDepositModal()" style="cursor: pointer; font-size: 18px; color: var(--mut);">&times;</span>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label style="font-size: 11px; font-weight: 600; color: var(--mut); display: block; margin-bottom: 4px;">Phone Number</label>
+        <input type="tel" id="depositPhoneInput" placeholder="07XXXXXXXX" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text);" />
+      </div>
+
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label style="font-size: 11px; font-weight: 600; color: var(--mut); display: block; margin-bottom: 4px;">Amount (UGX)</label>
+        <input type="number" id="depositAmountInput" placeholder="Minimum 5,000" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text);" />
+      </div>
+
+      <button type="button" class="btn" onclick="proceedToDepositStep2()" style="width: 100%; padding: 12px; font-weight: 700; background: var(--accent); color: #000; cursor: pointer;">
+        CONTINUE
+      </button>
+    </div>
+
+    <!-- STEP 2: MERCHANT PAYMENT INSTRUCTIONS & TXID -->
+    <div id="depositStep2" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <span style="font-weight: 800; font-size: 14px; color: var(--accent);">Merchant Payment Info</span>
+        <span onclick="closeDepositModal()" style="cursor: pointer; font-size: 18px; color: var(--mut);">&times;</span>
+      </div>
+
+      <div style="background: var(--bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 14px; font-size: 12px;">
+        <div style="margin-bottom: 8px;">
+          <span style="color: var(--mut); font-size: 10px; display: block;">MERCHANT NUMBER</span>
+          <strong style="font-size: 16px; color: var(--accent);">0795160094</strong>
+        </div>
+        <div style="margin-bottom: 8px; border-top: 1px solid var(--border); padding-top: 6px;">
+          <span style="color: var(--mut); font-size: 10px; display: block;">ACCOUNT NAME</span>
+          <strong style="color: var(--text);">JOSEPH BYABASAIJA</strong>
+        </div>
+        <div style="border-top: 1px solid var(--border); padding-top: 6px;">
+          <span style="color: var(--mut); font-size: 10px; display: block;">AMOUNT TO SEND</span>
+          <strong style="font-size: 15px; color: #10b981;">UGX <span id="summaryDepositAmount">0</span></strong>
+        </div>
+      </div>
+
+      <!-- TRANSACTION ID INPUT -->
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label style="font-size: 11px; font-weight: 700; color: var(--text); display: block; margin-bottom: 4px;">
+          Transaction ID <span style="color: var(--danger);">*</span>
+        </label>
+        <input type="text" id="depositTxIdInput" placeholder="e.g. 24892019481" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--accent); background: var(--bg); color: var(--accent); font-family: monospace; text-transform: uppercase;" />
+        <p style="font-size: 10px; color: var(--mut); margin-top: 4px;">Paste the exact Transaction ID from your Mobile Money SMS.</p>
+      </div>
+
+      <!-- NOTICE -->
+      <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 10px; border-radius: 8px; font-size: 11px; color: #10b981; margin-bottom: 14px;">
+        <strong>Notice:</strong> Deposit processing usually takes <strong>2-10 minutes</strong> upon submission.
+      </div>
+
+      <button type="button" class="btn" onclick="submitDepositTransaction()" style="width: 100%; padding: 12px; font-weight: 700; background: var(--accent); color: #000; cursor: pointer;">
+        SUBMIT DEPOSIT
+      </button>
+    </div>
+
+  </div>
+</div>
 
   <!-- ADMIN PANEL MODAL -->
   <div id="adminModal" class="modal">
@@ -1013,8 +1082,7 @@
         renderTeamView();
       }
     }
-
-    async function loadAdminDashboardData() {
+async function loadAdminDashboardData() {
       try {
         const { collection, getDocs } = window.firebaseFns;
         let querySnapshot = await getDocs(collection(window.firebaseDb, "users"));
@@ -1281,67 +1349,64 @@
       } catch (e) { alert('Error: ' + e.message); }
     }
     
-    function selectQuickDeposit(amount) {
-      document.getElementById('depositAmt').value = amount;
-    }
+            let pendingDepositAmount = 0;
 
-    function selectDepositNetwork(net) {
-      selectedNetwork = net;
-      document.getElementById('netAirtel').className = (net === 'Airtel') ? 'network-card active' : 'network-card';
-      document.getElementById('netMTN').className = (net === 'MTN') ? 'network-card active' : 'network-card';
-    }
-
-    async function submitFinalDeposit() {
-      const amount = Number(document.getElementById('depositAmt').value);
+    window.proceedToDepositStep2 = function() {
       const phone = document.getElementById('depositPhoneInput').value.trim();
+      const amount = Number(document.getElementById('depositAmountInput').value);
 
+      if (!phone || phone.length < 10) {
+        alert("Please enter a valid phone number.");
+        return;
+      }
       if (!amount || amount < 5000) {
-        alert("⚠️ Please enter a valid deposit amount (min. UGX 5,000).");
-        return;
-      }
-      if (!phone.match(/^07[0-9]{8}$/)) {
-        alert("⚠️ Please enter a valid 10-digit phone number.");
+        alert("Minimum deposit amount is UGX 5,000");
         return;
       }
 
-      try {
-        const response = await fetch('/api/deposit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount, phone, network: selectedNetwork })
-        });
+      pendingDepositAmount = amount;
+      document.getElementById('summaryDepositAmount').innerText = amount.toLocaleString();
+      
+      document.getElementById('depositStep1').classList.add('hidden');
+      document.getElementById('depositStep2').classList.remove('hidden');
+    };
 
-        const result = await response.json();
-        if (result.success) {
-          alert("✅ Mobile Payment Prompt Sent! Transaction ID: " + result.transactionId);
-        } else {
-          deposits.unshift({
-            desc: `Deposit via ${selectedNetwork}`,
-            amt: `+UGX ${amount.toLocaleString()}`,
-            rawAmt: amount,
-            status: 'Pending',
-            timestamp: new Date().getTime()
-          });
-          await saveUserData();
-          updateUI();
-          alert("📌 Deposit request submitted for admin review!");
-        }
-        closeModal('depositModal');
-      } catch (err) {
-        deposits.unshift({
-          desc: `Deposit via ${selectedNetwork}`,
-          amt: `+UGX ${amount.toLocaleString()}`,
-          rawAmt: amount,
-          status: 'Pending',
-          timestamp: new Date().getTime()
-        });
-        await saveUserData();
-        updateUI();
-        alert("📌 Request recorded! Deposit pending review.");
-        closeModal('depositModal');
+    window.refreshDepositState = function() {
+      document.getElementById('depositTxIdInput').value = '';
+      alert("Deposit state refreshed.");
+    };
+
+    window.submitDepositTransaction = async function() {
+      const txId = document.getElementById('depositTxIdInput').value.trim();
+
+      if (!txId) {
+        alert("Please enter the SMS Transaction ID to verify your deposit.");
+        return;
       }
-    }
 
+      const depositPhone = document.getElementById('depositPhoneInput').value.trim();
+
+      await addDoc(collection(db, "deposits"), {
+        userPhone: currentUser.phone,
+        paymentPhone: depositPhone,
+        amount: pendingDepositAmount,
+        transactionId: txId,
+        merchantNumber: "0795160094",
+        accountName: "JOSEPH BYABASAIJA",
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+
+      alert("Deposit submitted successfully! Your payment will be verified within 2-10 minutes.");
+      
+      // Reset flow
+      document.getElementById('depositTxIdInput').value = '';
+      document.getElementById('depositAmountInput').value = '';
+      document.getElementById('depositStep2').classList.add('hidden');
+      document.getElementById('depositStep1').classList.remove('hidden');
+      switchPage('page-home');
+    };
+    
     function processWithdrawalsTimeout() {
       let now = new Date().getTime();
       let updated = false;
@@ -1702,6 +1767,47 @@
         }
       }
     }
+// DEPOSIT MODAL FUNCTIONS
+function openDepositModal() {
+  const modal = document.getElementById('depositModal');
+  const s1 = document.getElementById('depositStep1');
+  const s2 = document.getElementById('depositStep2');
+  if (modal) modal.style.display = 'flex';
+  if (s1) s1.style.display = 'block';
+  if (s2) s2.style.display = 'none';
+}
+
+function closeDepositModal() {
+  const modal = document.getElementById('depositModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function proceedToDepositStep2() {
+  const step1 = document.getElementById('depositStep1');
+  const step2 = document.getElementById('depositStep2');
+
+  if (step1) step1.style.display = 'none';
+  if (step2) step2.style.display = 'block';
+
+  const amountInput = document.getElementById('depositAmountInput');
+  const summaryEl = document.getElementById('summaryDepositAmount');
+  if (amountInput && summaryEl) {
+    summaryEl.innerText = amountInput.value || '0';
+  }
+}
+
+function submitDepositTransaction() {
+  const txId = document.getElementById('depositTxIdInput')?.value.trim();
+
+  if (!txId) {
+    alert('Please enter the Mobile Money Transaction ID.');
+    return;
+  }
+
+  alert('Deposit submitted successfully! Processing time is 2-10 minutes.');
+  closeDepositModal();
+}
+
   </script>
 </body>
 </html>  
