@@ -1037,343 +1037,509 @@
     }
 
     async function loadUserData() {
-      const { doc, getDoc } = window.firebaseFns;
-      let docSnap = await getDoc(doc(window.firebaseDb, "users", currentUserId));
-      if (docSnap.exists()) {
-        let data = docSnap.data();
-        currentUserPhone = data.phone || '';
-        balance = Number(data.balance) || 0;
-        inviteCode = data.inviteCode || generateUniqueRefCode();
-        vipTier = data.vipTier || 'None';
-        teamCount = Number(data.teamCount) || 0;
-        deposits = data.deposits || [];
-        withdrawals = data.withdrawals || [];
-        investmentsList = data.investmentsList || [];
-        activeMachines = data.activeMachines || [];
-        lastRewardDate = data.lastRewardDate || '';
-        hasDeposited = !!data.hasDeposited;
-        hasPurchased = !!data.hasPurchased;
-        claimedMilestones = data.claimedMilestones || [];
-        referredByCode = data.referredBy || '';
-        isBanned = !!data.isBanned;
+  const { doc, getDoc } = window.firebaseFns;
+  let docSnap = await getDoc(doc(window.firebaseDb, "users", currentUserId));
+  if (docSnap.exists()) {
+    let data = docSnap.data();
+    currentUserPhone = data.phone || '';
+    balance = Number(data.balance) || 0;
+    inviteCode = data.inviteCode || generateUniqueRefCode();
+    vipTier = data.vipTier || 'None';
+    teamCount = Number(data.teamCount) || 0;
+    deposits = data.deposits || [];
+    withdrawals = data.withdrawals || [];
+    investmentsList = data.investmentsList || [];
+    activeMachines = data.activeMachines || [];
+    lastRewardDate = data.lastRewardDate || '';
+    hasDeposited = !!data.hasDeposited;
+    hasPurchased = !!data.hasPurchased;
+    claimedMilestones = data.claimedMilestones || [];
+    referredByCode = data.referredBy || '';
+    isBanned = !!data.isBanned;
 
-        processActiveMachinesProgress();
-        processWithdrawalsTimeout();
+    processActiveMachinesProgress();
+    processWithdrawalsTimeout();
 
-        document.getElementById('authContainer').style.display = 'none';
-        document.getElementById('appContainer').style.display = 'block';
-        document.getElementById('profileUsername').innerText = currentUserPhone;
+    document.getElementById('authContainer').style.display = 'none';
+    document.getElementById('appContainer').style.display = 'block';
+    document.getElementById('profileUsername').innerText = currentUserPhone;
 
-        if (isBanned && currentUserPhone !== adminPhoneKey) {
-          document.getElementById('apologySection').style.display = 'block';
-        } else {
-          document.getElementById('apologySection').style.display = 'none';
-        }
-
-        if (currentUserPhone === adminPhoneKey) {
-          document.getElementById('adminPortalBtn').style.display = 'block';
-          loadAdminDashboardData();
-        } else {
-          document.getElementById('adminPortalBtn').style.display = 'none';
-        }
-
-        updateUI();
-        renderMachines();
-        renderTeamView();
-      }
+    if (isBanned && currentUserPhone !== adminPhoneKey) {
+      document.getElementById('apologySection').style.display = 'block';
+    } else {
+      document.getElementById('apologySection').style.display = 'none';
     }
-async function loadAdminDashboardData() {
-      try {
-        const { collection, getDocs } = window.firebaseFns;
-        let querySnapshot = await getDocs(collection(window.firebaseDb, "users"));
-        
-        let totalUsers = 0, activeUsers = 0, dormantUsers = 0;
-        let pendingQueueHtml = '', pendingDepositsHtml = '', activeUsersHtml = '', dormantUsersHtml = '';
-        let overallTotalDeposits = 0, overallWeeklyDeposits = 0, overallTotalWithdrawals = 0, overallWeeklyWithdrawals = 0;
-        
-        let nowTime = new Date().getTime();
-        let oneWeekMs = 7 * 24 * 60 * 60 * 1000;
 
-        querySnapshot.forEach((docSnap) => {
-          let uData = docSnap.data();
-          totalUsers++;
-          let isUserActive = uData.hasDeposited || (uData.activeMachines && uData.activeMachines.length > 0);
-          
-          let userInfoSnippet = `
-            <div style="background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px; font-size:11px; display:flex; justify-content:space-between; align-items:center;">
+    if (currentUserPhone === adminPhoneKey) {
+      document.getElementById('adminPortalBtn').style.display = 'block';
+      loadAdminDashboardData();
+    } else {
+      document.getElementById('adminPortalBtn').style.display = 'none';
+    }
+
+    updateUI();
+    renderMachines();
+    renderTeamView();
+  }
+}
+
+async function loadAdminDashboardData() {
+  try {
+    const { collection, getDocs } = window.firebaseFns;
+    let querySnapshot = await getDocs(collection(window.firebaseDb, "users"));
+    
+    let totalUsers = 0, activeUsers = 0, dormantUsers = 0;
+    let pendingDepositsHtml = '', pendingWithdrawalsHtml = '', activeUsersHtml = '', dormantUsersHtml = '';
+    let overallTotalDeposits = 0, overallTotalWithdrawals = 0;
+
+    querySnapshot.forEach((docSnap) => {
+      let uData = docSnap.data();
+      let userId = docSnap.id;
+      totalUsers++;
+      let isUserActive = uData.hasDeposited || (uData.activeMachines && uData.activeMachines.length > 0);
+      
+      let userInfoSnippet = `
+        <div style="background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px; font-size:11px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <b>Phone:</b> ${uData.phone || 'N/A'}<br>
+            <b>Email:</b> ${uData.email || 'N/A'}<br>
+            <b>Balance:</b> UGX ${(Number(uData.balance)||0).toLocaleString()}
+          </div>
+        </div>
+      `;
+
+      if (isUserActive) { 
+        activeUsers++; 
+        activeUsersHtml += userInfoSnippet; 
+      } else { 
+        dormantUsers++; 
+        dormantUsersHtml += userInfoSnippet;
+      }
+
+      // Check Firestore user document for pending withdrawals
+      let userWithdrawals = uData.withdrawals || [];
+      userWithdrawals.forEach((w, wIndex) => {
+        let wAmount = Number(w.rawAmount || w.amount) || 0;
+        if (w.status === 'Succeed') {
+          overallTotalWithdrawals += wAmount;
+        } else if (w.status === 'Pending' || w.status === 'Processing') {
+          pendingWithdrawalsHtml += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; margin-bottom:6px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
               <div>
-                <b>Phone:</b> ${uData.phone || 'N/A'}<br>
-                <b>Email:</b> ${uData.email || 'N/A'}<br>
-                <b>Balance:</b> UGX ${(Number(uData.balance)||0).toLocaleString()}
+                <b>${uData.phone || 'User'}</b><br>
+                <span style="color:#ef4444; font-weight:700;">UGX ${wAmount.toLocaleString()}</span><br>
+                <small style="color:var(--mut);">Method: ${w.method || 'Mobile Money'}</small>
+              </div>
+              <div style="display:flex; gap:4px;">
+                <button class="btn" style="padding:4px 8px; font-size:11px; background:#22c55e;" onclick="adminApproveWithdrawal('${userId}', ${wIndex})">Approve</button>
+                <button class="btn" style="padding:4px 8px; font-size:11px; background:#ef4444;" onclick="adminRejectWithdrawal('${userId}', ${wIndex})">Reject</button>
               </div>
             </div>
           `;
+        }
+      });
+    });
 
-          if (isUserActive) { activeUsers++; activeUsersHtml += userInfoSnippet; } 
-          else { dormantUsers++; dormantUsersHtml += userInfoSnippet; }
+    // Load and render pending deposits from localStorage / Firestore
+    const allDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
+    allDeposits.forEach((dep, depIndex) => {
+      let dAmount = Number(dep.amt || dep.rawAmt) || 0;
 
-          if (uData.deposits && Array.isArray(uData.deposits)) {
-            uData.deposits.forEach((dep, depIndex) => {
-              let dAmount = Number(dep.rawAmt) || 0;
-              if (dep.status === 'Approved' || !dep.status) {
-                overallTotalDeposits += dAmount;
-                if (dep.timestamp && (nowTime - dep.timestamp) <= oneWeekMs) overallWeeklyDeposits += dAmount;
-              }
-
-              if (dep.status === 'Pending') {
-                pendingDepositsHtml += `
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px;">
-                    <div>
-                      <b>${uData.phone}</b><br>
-                      <span style="color:var(--accent); font-weight:700;">UGX ${dAmount.toLocaleString()}</span>
-                    </div>
-                    <div style="display:flex; gap:4px;">
-                      <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--accent);" onclick="adminApproveDeposit('${docSnap.id}', ${depIndex})">Approve</button>
-                      <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--danger); color:#fff;" onclick="adminRejectDeposit('${docSnap.id}', ${depIndex})">Reject</button>
-                    </div>
-                  </div>
-                `;
-              }
-            });
-          }
-          if (uData.withdrawals && Array.isArray(uData.withdrawals)) {
-            uData.withdrawals.forEach((w, wIndex) => {
-              let wAmount = Number(w.rawAmount) || 0;
-              if (w.status === 'Succeed' || w.status === 'Pending') {
-                overallTotalWithdrawals += wAmount;
-                if (w.timestamp && (nowTime - w.timestamp) <= oneWeekMs) overallWeeklyWithdrawals += wAmount;
-              }
-
-              if (w.status === 'Pending') {
-                pendingQueueHtml += `
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px;">
-                    <div>
-                      <b>${uData.phone}</b><br>
-                      <span style="color:var(--danger); font-weight:700;">UGX ${wAmount.toLocaleString()}</span>
-                    </div>
-                    <div style="display:flex; gap:4px;">
-                      <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--accent);" onclick="adminApproveWithdrawal('${docSnap.id}', ${wIndex})">Approve</button>
-                      <button class="btn" style="padding:4px 8px; font-size:10px; background:var(--danger); color:#fff;" onclick="adminRejectWithdrawal('${docSnap.id}', ${wIndex})">Reject</button>
-                    </div>
-                  </div>
-                `;
-              }
-            });
-          }
-        });
-       document.getElementById('adminStatTotalUsers').innerText = totalUsers;
-        document.getElementById('adminStatActiveUsers').innerText = activeUsers;
-        document.getElementById('adminStatDormantUsers').innerText = dormantUsers;
-        document.getElementById('adminStatTotalDeposits').innerText = 'UGX ' + overallTotalDeposits.toLocaleString();
-        document.getElementById('adminStatWeeklyDeposits').innerText = 'UGX ' + overallWeeklyDeposits.toLocaleString();
-        document.getElementById('adminStatTotalWithdrawals').innerText = 'UGX ' + overallTotalWithdrawals.toLocaleString();
-        document.getElementById('adminStatWeeklyWithdrawals').innerText = 'UGX ' + overallWeeklyWithdrawals.toLocaleString();
-
-        document.getElementById('adminActiveUsersList').innerHTML = activeUsersHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No active users.</div>';
-        document.getElementById('adminDormantUsersList').innerHTML = dormantUsersHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No dormant users.</div>';
-        document.getElementById('adminWithdrawalsQueue').innerHTML = pendingQueueHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No pending withdrawals.</div>';
-        document.getElementById('adminPendingDepositsQueue').innerHTML = pendingDepositsHtml || '<div style="font-size:11px; color:var(--mut); text-align:center; padding:10px;">No pending deposit requests.</div>';
-      } catch (e) {
-        console.error("Admin Load Error:", e);
+      if (dep.status === 'Approved') {
+        overallTotalDeposits += dAmount;
       }
-    }
 
-    async function adminCheckUserStatus() {
-      let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
-      let resEl = document.getElementById('adminUserLookupResult');
-      if (!rawPhone.match(/^07[0-9]{8}$/)) {
-        resEl.innerText = "⚠️ Please enter a valid 10-digit phone number.";
-        return;
+      if (dep.status === 'Pending') {
+        pendingDepositsHtml += `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; margin-bottom:6px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
+            <div>
+              <b>${dep.phone || 'User'}</b><br>
+              <span style="color:var(--accent); font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
+              <small style="color:var(--mut);">TxID: ${dep.txId || 'N/A'}</small>
+            </div>
+            <div style="display:flex; gap:4px;">
+              <button class="btn" style="padding:4px 8px; font-size:11px; background:#22c55e;" onclick="adminApproveDeposit('${dep.userId || ''}', ${depIndex})">Approve</button>
+              <button class="btn" style="padding:4px 8px; font-size:11px; background:#ef4444;" onclick="adminRejectDeposit('${dep.userId || ''}', ${depIndex})">Reject</button>
+            </div>
+          </div>
+        `;
       }
-      try {
-        const { collection, query, where, getDocs } = window.firebaseFns;
-        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          resEl.innerText = "❌ User not found.";
-        } else {
-          snap.forEach(d => {
-            let u = d.data();
-            resEl.innerHTML = `
-              <b>User:</b> ${u.phone}<br>
-              <b>Email:</b> ${u.email}<br>
-              <b>Status:</b> ${u.isBanned ? '<span style="color:var(--danger)">BANNED</span>' : '<span style="color:var(--accent)">ACTIVE</span>'}<br>
-              <b>Apology Message:</b> ${u.apologyMessage || 'None'}
-            `;
-          });
-        }
-      } catch (e) { resEl.innerText = "Error: " + e.message; }
-    }
+    });
 
-    async function adminBanUserAction() {
-      let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
-      if (!rawPhone.match(/^07[0-9]{8}$/)) {
-        alert("⚠️ Please enter a valid 10-digit phone number.");
-        return;
-      }
-      try {
-        const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
-        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          alert("❌ User not found.");
-        } else {
-          snap.forEach(async (d) => {
-            let u = d.data();
-            let newBanState = !u.isBanned;
-            await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: newBanState });
-            alert(`User status updated to: ${newBanState ? 'BANNED' : 'ACTIVE'}`);
-            adminCheckUserStatus();
-          });
-        }
-      } catch (e) { alert("Error: " + e.message); }
-    }
+    // Update DOM Elements
+    const elTotalUsers = document.getElementById('adminStatTotalUsers');
+    if (elTotalUsers) elTotalUsers.innerText = String(totalUsers);
 
-    async function adminResetUserPassword() {
-      let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
-      if (!rawPhone.match(/^07[0-9]{8}$/)) {
-        alert("⚠️ Please enter a valid 10-digit phone number.");
-        return;
-      }
-      try {
-        const { collection, query, where, getDocs, sendPasswordResetEmail } = window.firebaseFns;
-        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          alert("❌ User not found.");
-        } else {
-          let uEmail = '';
-          snap.forEach(d => { uEmail = d.data().email; });
-          if (uEmail) {
-            await sendPasswordResetEmail(window.firebaseAuth, uEmail);
-            alert(`✅ Password reset link sent to user's email: ${uEmail}`);
-          }
-        }
-      } catch (e) { alert("Error: " + e.message); }
-    }
+    const elActiveUsers = document.getElementById('adminStatActiveUsers');
+    if (elActiveUsers) elActiveUsers.innerText = String(activeUsers);
 
-    async function submitUserApology() {
-      let msg = document.getElementById('userApologyInput').value.trim();
-      if (!msg) return alert('⚠️ Please enter an apology message.');
-      try {
-        const { doc, updateDoc } = window.firebaseFns;
-        await updateDoc(doc(window.firebaseDb, "users", currentUserId), { apologyMessage: msg });
-        alert('✅ Apology submitted to admin for review.');
-      } catch (e) { alert('Error: ' + e.message); }
-    }
+    const elDormantUsers = document.getElementById('adminStatDormantUsers');
+    if (elDormantUsers) elDormantUsers.innerText = String(dormantUsers);
 
-    async function adminSendBroadcast() {
-      let msg = document.getElementById('adminBroadcastInput').value.trim();
-      if (!msg) return alert('⚠️ Please type a message.');
-      try {
-        const { doc, setDoc, collection, addDoc } = window.firebaseFns;
-        await setDoc(doc(window.firebaseDb, "settings", "broadcast"), { message: msg });
-        await addDoc(collection(window.firebaseDb, "announcements"), { message: msg, date: new Date().toLocaleDateString() });
-        alert('📢 Broadcast dispatched!');
-        document.getElementById('broadcastText').innerText = msg;
-        document.getElementById('broadcastBanner').style.display = 'block';
-      } catch (e) { alert('Error broadcasting: ' + e.message); }
-    }
+    const elTotalDeposits = document.getElementById('adminStatTotalDeposits');
+    if (elTotalDeposits) elTotalDeposits.innerText = 'UGX ' + overallTotalDeposits.toLocaleString();
 
-    async function adminApproveWithdrawal(targetUserId, wIndex) {
-      try {
-        const { doc, getDoc, updateDoc } = window.firebaseFns;
-        let uRef = doc(window.firebaseDb, "users", targetUserId);
-        let snap = await getDoc(uRef);
-        if (snap.exists()) {
-          let uData = snap.data();
-          let wList = uData.withdrawals || [];
-          if (wList[wIndex]) {
-            wList[wIndex].status = 'Succeed';
-            await updateDoc(uRef, { withdrawals: wList });
-            alert('✅ Withdrawal approved!');
-            loadAdminDashboardData();
-          }
-        }
-      } catch (e) { alert('Error: ' + e.message); }
-    }
+    const elTotalWithdrawals = document.getElementById('adminStatTotalWithdrawals');
+    if (elTotalWithdrawals) elTotalWithdrawals.innerText = 'UGX ' + overallTotalWithdrawals.toLocaleString();
 
-    async function adminRejectWithdrawal(targetUserId, wIndex) {
-      try {
-        const { doc, getDoc, updateDoc } = window.firebaseFns;
-        let uRef = doc(window.firebaseDb, "users", targetUserId);
-        let snap = await getDoc(uRef);
-        if (snap.exists()) {
-          let uData = snap.data();
-          let wList = uData.withdrawals || [];
-          if (wList[wIndex]) {
-            let refundAmount = wList[wIndex].rawAmount || 0;
-            wList[wIndex].status = 'Cancelled';
-            await updateDoc(uRef, { balance: (Number(uData.balance) || 0) + refundAmount, withdrawals: wList });
-            alert('🚫 Withdrawal rejected and refunded.');
-            loadAdminDashboardData();
-          }
-        }
-      } catch (e) { alert('Error: ' + e.message); }
-    }
+    const activeEl = document.getElementById('adminActiveUsersList');
+    if (activeEl) activeEl.innerHTML = activeUsersHtml;
 
-    async function adminApproveDeposit(targetUserId, depIndex) {
-      try {
-        const { doc, getDoc, updateDoc } = window.firebaseFns;
-        let uRef = doc(window.firebaseDb, "users", targetUserId);
-        let snap = await getDoc(uRef);
-        if (snap.exists()) {
-          let uData = snap.data();
-          let dList = uData.deposits || [];
-          if (dList[depIndex]) {
-            let depAmount = Number(dList[depIndex].rawAmt) || 0;
-            dList[depIndex].status = 'Approved';
-            await updateDoc(uRef, { balance: (Number(uData.balance) || 0) + depAmount, hasDeposited: true, deposits: dList });
-            alert(`✅ Deposit approved! UGX ${depAmount.toLocaleString()} credited.`);
-            loadAdminDashboardData();
-          }
-        }
-      } catch (e) { alert('Error: ' + e.message); }
-    }
+    const dormantEl = document.getElementById('adminDormantUsersList');
+    if (dormantEl) dormantEl.innerHTML = dormantUsersHtml;
 
-    async function adminRejectDeposit(targetUserId, depIndex) {
-      try {
-        const { doc, getDoc, updateDoc } = window.firebaseFns;
-        let uRef = doc(window.firebaseDb, "users", targetUserId);
-        let snap = await getDoc(uRef);
-        if (snap.exists()) {
-          let uData = snap.data();
-          let dList = uData.deposits || [];
-          if (dList[depIndex]) {
-            dList[depIndex].status = 'Rejected';
-            await updateDoc(uRef, { deposits: dList });
-            alert('🚫 Deposit request rejected.');
-            loadAdminDashboardData();
-          }
-        }
+    const withdrawalsEl = document.getElementById('adminWithdrawalsQueue');
+    if (withdrawalsEl) withdrawalsEl.innerHTML = pendingWithdrawalsHtml || '<div style="font-size:12px; color:var(--mut); padding:6px;">No pending withdrawals</div>';
+
+    const pendingDepEl = document.getElementById('adminPendingDepositsQueue');
+    if (pendingDepEl) pendingDepEl.innerHTML = pendingDepositsHtml || '<div style="font-size:12px; color:var(--mut); padding:6px;">No pending deposits</div>';
+
   } catch (e) {
-    alert('Error: ' + e.message);
+    console.error("Error loading admin dashboard:", e);
+  }
+}
+
+async function adminCheckUserStatus() {
+  let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
+  let resEl = document.getElementById('adminUserLookupResult');
+  if (!rawPhone.match(/^07[0-9]{8}$/)) {
+    resEl.innerText = "⚠️ Please enter a valid 10-digit phone number.";
+    return;
+  }
+  try {
+    const { collection, query, where, getDocs } = window.firebaseFns;
+    const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      resEl.innerText = "❌ User not found.";
+    } else {
+      snap.forEach(d => {
+        let u = d.data();
+        resEl.innerHTML = `
+          <b>User:</b> ${u.phone}<br>
+          <b>Email:</b> ${u.email}<br>
+          <b>Status:</b> ${u.isBanned ? '<span style="color:var(--danger)">BANNED</span>' : '<span style="color:var(--accent)">ACTIVE</span>'}<br>
+          <b>Apology Message:</b> ${u.apologyMessage || 'None'}
+        `;
+      });
+    }
+  } catch (e) { resEl.innerText = "Error: " + e.message; }
+}
+
+async function adminBanUserAction() {
+  let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
+  if (!rawPhone.match(/^07[0-9]{8}$/)) {
+    alert("⚠️ Please enter a valid 10-digit phone number.");
+    return;
+  }
+  try {
+    const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
+    const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      alert("❌ User not found.");
+    } else {
+      snap.forEach(async (d) => {
+        let u = d.data();
+        let newBanState = !u.isBanned;
+        await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: newBanState });
+        alert(`User status updated to: ${newBanState ? 'BANNED' : 'ACTIVE'}`);
+        adminCheckUserStatus();
+      });
+    }
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+async function adminResetUserPassword() {
+  let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
+  if (!rawPhone.match(/^07[0-9]{8}$/)) {
+    alert("⚠️ Please enter a valid 10-digit phone number.");
+    return;
+  }
+  try {
+    const { collection, query, where, getDocs, sendPasswordResetEmail } = window.firebaseFns;
+    const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      alert("❌ User not found.");
+    } else {
+      let uEmail = '';
+      snap.forEach(d => { uEmail = d.data().email; });
+      if (uEmail) {
+        await sendPasswordResetEmail(window.firebaseAuth, uEmail);
+        alert(`✅ Password reset link sent to user's email: ${uEmail}`);
+      }
+    }
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+async function submitUserApology() {
+  let msg = document.getElementById('userApologyInput').value.trim();
+  if (!msg) return alert('⚠️ Please enter an apology message.');
+  try {
+    const { doc, updateDoc } = window.firebaseFns;
+    await updateDoc(doc(window.firebaseDb, "users", currentUserId), { apologyMessage: msg });
+    alert('✅ Apology submitted to admin for review.');
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function adminSendBroadcast() {
+  let msg = document.getElementById('adminBroadcastInput').value.trim();
+  if (!msg) return alert('⚠️ Please type a message.');
+  try {
+    const { doc, setDoc, collection, addDoc } = window.firebaseFns;
+    await setDoc(doc(window.firebaseDb, "settings", "broadcast"), { message: msg });
+    await addDoc(collection(window.firebaseDb, "announcements"), { message: msg, date: new Date().toLocaleDateString() });
+    alert('📢 Broadcast dispatched!');
+    document.getElementById('broadcastText').innerText = msg;
+    document.getElementById('broadcastBanner').style.display = 'block';
+  } catch (e) { alert('Error broadcasting: ' + e.message); }
+}
+
+async function adminApproveWithdrawal(targetUserId, wIndex) {
+  try {
+    const { doc, getDoc, updateDoc } = window.firebaseFns;
+    let uRef = doc(window.firebaseDb, "users", targetUserId);
+    let snap = await getDoc(uRef);
+    if (snap.exists()) {
+      let uData = snap.data();
+      let wList = uData.withdrawals || [];
+      if (wList[wIndex]) {
+        wList[wIndex].status = 'Succeed';
+        await updateDoc(uRef, { withdrawals: wList });
+        alert('✅ Withdrawal approved!');
+        loadAdminDashboardData();
+      }
+    }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function adminRejectWithdrawal(targetUserId, wIndex) {
+  try {
+    const { doc, getDoc, updateDoc } = window.firebaseFns;
+    let uRef = doc(window.firebaseDb, "users", targetUserId);
+    let snap = await getDoc(uRef);
+    if (snap.exists()) {
+      let uData = snap.data();
+      let wList = uData.withdrawals || [];
+      if (wList[wIndex]) {
+        let refundAmount = wList[wIndex].rawAmount || 0;
+        wList[wIndex].status = 'Cancelled';
+        await updateDoc(uRef, { balance: (Number(uData.balance) || 0) + refundAmount, withdrawals: wList });
+        alert('🚫 Withdrawal rejected and refunded.');
+        loadAdminDashboardData();
+      }
+    }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+async function submitWithdrawalRequest() {
+  const amountInput = document.getElementById('withdrawAmountInput');
+  const phoneInput = document.getElementById('withdrawPhoneInput');
+
+  const amount = amountInput ? Number(amountInput.value) : 0;
+  const phone = phoneInput ? phoneInput.value.trim() : currentUserPhone;
+
+  if (!currentUserId) {
+    alert("⚠️ Please log in first.");
+    return;
+  }
+  if (!amount || amount < 5000) {
+    alert("⚠️ Minimum withdrawal amount is UGX 5,000.");
+    return;
+  }
+  if (!phone || phone.length < 10) {
+    alert("⚠️ Please enter a valid phone number.");
+    return;
+  }
+
+  try {
+    const { doc, getDoc, updateDoc } = window.firebaseFns;
+    let uRef = doc(window.firebaseDb, "users", currentUserId);
+    let snap = await getDoc(uRef);
+
+    if (snap.exists()) {
+      let uData = snap.data();
+      let currentBal = Number(uData.balance) || 0;
+
+      if (amount > currentBal) {
+        alert("❌ Insufficient balance!");
+        return;
+      }
+
+      let wList = uData.withdrawals || [];
+      const newWithdrawal = {
+        id: 'WD-' + Date.now(),
+        rawAmount: amount,
+        amount: amount,
+        phone: phone,
+        status: 'Pending',
+        timestamp: new Date().toISOString()
+      };
+
+      wList.push(newWithdrawal);
+
+      // Deduct balance immediately and add request to user document
+      await updateDoc(uRef, {
+        balance: currentBal - amount,
+        withdrawals: wList
+      });
+
+      // Update local global variables & UI
+      balance = currentBal - amount;
+      withdrawals = wList;
+
+      alert("✅ Withdrawal request of UGX " + amount.toLocaleString() + " submitted successfully!");
+      
+      if (typeof updateUI === 'function') updateUI();
+      if (typeof closeWithdrawModal === 'function') closeWithdrawModal();
+      
+      if (amountInput) amountInput.value = '';
+    }
+  } catch (e) {
+    console.error("Withdrawal error:", e);
+    alert("Error submitting withdrawal: " + e.message);
+  }
+}
+
+async function adminApproveDeposit(targetUserId, depIndex) {
+  try {
+    const { doc, getDoc, updateDoc, collection, query, where, getDocs } = window.firebaseFns;
+    
+    // 1. Get deposit from localStorage
+    let allDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
+    let targetDep = allDeposits[depIndex];
+    if (!targetDep) return alert('Deposit record not found.');
+
+    let depAmount = Number(targetDep.rawAmt || targetDep.amt) || 0;
+    let userPhone = targetDep.phone || '';
+
+    // 2. Query Firestore to find the user document by phone or ID
+    let userDocRef = null;
+    let userData = null;
+
+    if (targetUserId && targetUserId.length > 5) {
+      userDocRef = doc(window.firebaseDb, "users", targetUserId);
+      let snap = await getDoc(userDocRef);
+      if (snap.exists()) userData = snap.data();
+    }
+
+    if (!userData && userPhone) {
+      const q = query(collection(window.firebaseDb, "users"), where("phone", "==", userPhone));
+      const querySnap = await getDocs(q);
+      if (!querySnap.empty) {
+        let userSnap = querySnap.docs[0];
+        userDocRef = doc(window.firebaseDb, "users", userSnap.id);
+        userData = userSnap.data();
+      }
+    }
+
+    // 3. Update Firestore balance and deposit status
+    if (userDocRef && userData) {
+      let dList = userData.deposits || [];
+      dList.push({
+        id: targetDep.id || ('DEP-' + Date.now()),
+        amount: depAmount,
+        txId: targetDep.txId || '',
+        status: 'Approved',
+        timestamp: new Date().toISOString()
+      });
+
+      await updateDoc(userDocRef, {
+        balance: (Number(userData.balance) || 0) + depAmount,
+        hasDeposited: true,
+        deposits: dList
+      });
+    }
+
+    // 4. Update local storage deposit state
+    allDeposits[depIndex].status = 'Approved';
+    localStorage.setItem('deposits', JSON.stringify(allDeposits));
+
+    alert("✅ Deposit approved successfully! UGX " + depAmount.toLocaleString());
+    loadAdminDashboardData();
+  } catch (e) {
+    console.error("Approve error:", e);
+    alert('Error approving deposit: ' + e.message);
+  }
+}
+
+async function adminRejectDeposit(targetUserId, depIndex) {
+  try {
+    const { doc, getDoc, updateDoc, collection, query, where, getDocs } = window.firebaseFns;
+
+    let allDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
+    let targetDep = allDeposits[depIndex];
+    if (!targetDep) return alert('Deposit record not found.');
+
+    let userPhone = targetDep.phone || '';
+
+    // Query user by ID or Phone
+    let userDocRef = null;
+    let userData = null;
+
+    if (targetUserId && targetUserId.length > 5) {
+      userDocRef = doc(window.firebaseDb, "users", targetUserId);
+      let snap = await getDoc(userDocRef);
+      if (snap.exists()) userData = snap.data();
+    }
+
+    if (!userData && userPhone) {
+      const q = query(collection(window.firebaseDb, "users"), where("phone", "==", userPhone));
+      const querySnap = await getDocs(q);
+      if (!querySnap.empty) {
+        let userSnap = querySnap.docs[0];
+        userDocRef = doc(window.firebaseDb, "users", userSnap.id);
+        userData = userSnap.data();
+      }
+    }
+
+    if (userDocRef && userData) {
+      let dList = userData.deposits || [];
+      dList.push({
+        id: targetDep.id || ('DEP-' + Date.now()),
+        amount: Number(targetDep.rawAmt || targetDep.amt) || 0,
+        txId: targetDep.txId || '',
+        status: 'Rejected',
+        timestamp: new Date().toISOString()
+      });
+
+      await updateDoc(userDocRef, { deposits: dList });
+    }
+
+    allDeposits[depIndex].status = 'Rejected';
+    localStorage.setItem('deposits', JSON.stringify(allDeposits));
+
+    alert('🚫 Deposit request rejected.');
+    loadAdminDashboardData();
+  } catch (e) {
+    console.error("Reject error:", e);
+    alert('Error rejecting deposit: ' + e.message);
   }
 }
 
 let pendingDepositAmount = 0;
 
 window.proceedToDepositStep2 = function() {
-  const phone = document.getElementById('depositPhoneInput')?.value.trim();
-  const amount = Number(document.getElementById('depositAmountInput')?.value);
+  const phoneEl = document.getElementById('depositPhoneInput');
+  const amountEl = document.getElementById('depositAmountInput');
+  
+  const phone = phoneEl ? phoneEl.value.trim() : '';
+  const amount = amountEl ? Number(amountEl.value) : 0;
 
   if (!phone || phone.length < 10) {
     alert("Please enter a valid phone number.");
     return;
-  }
-
+  }  
   if (!amount || amount < 5000) {
     alert("Minimum deposit amount is UGX 5,000");
     return;
   }
-
   pendingDepositAmount = amount;
 
   const summaryEl = document.getElementById('summaryDepositAmount');
   if (summaryEl) {
     summaryEl.innerText = amount.toLocaleString();
   }
-
   const step1 = document.getElementById('depositStep1');
   const step2 = document.getElementById('depositStep2');
 
@@ -1381,13 +1547,12 @@ window.proceedToDepositStep2 = function() {
   if (step2) step2.style.display = 'block';
 };
 
+window.refreshDepositState = function() {
+  const inputEl = document.getElementById('depositTxIdInput');
+  if (inputEl) inputEl.value = '';
+  alert("Deposit state refreshed.");
+};
 
-
-
-    window.refreshDepositState = function() {
-      document.getElementById('depositTxIdInput').value = '';
-      alert("Deposit state refreshed.");
-    };
 window.submitDepositTransaction = async function() {
   const txIdInput = document.getElementById('depositTxIdInput');
   const txId = txIdInput ? txIdInput.value.trim() : '';
@@ -1397,40 +1562,43 @@ window.submitDepositTransaction = async function() {
     return;
   }
 
-  // Get current logged-in user or active session details
+  // Retrieve current user and amount details
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const userPhone = user ? user.phone : (document.getElementById('depositPhoneInput')?.value || 'Guest');
-
-  const payload = {
+  const userPhone = user ? (user.phone || user.username) : (document.getElementById('depositPhoneInput')?.value || 'Guest');
+  
+  const newDeposit = {
+    id: 'DEP-' + Date.now(),
     phone: userPhone,
-    amount: pendingDepositAmount || 0,
+    amt: pendingDepositAmount || 0,
     txId: txId,
     timestamp: new Date().toISOString(),
-    status: 'pending'
+    status: 'Pending'
   };
 
+  // 1. Save directly into localStorage deposits array for Admin Panel access
   try {
-    // 1. Try sending to local/backend API endpoint
-    const response = await fetch('/api/deposit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (response.ok) {
-      alert("Deposit submitted successfully! Processing time is 2-10 minutes.");
-    } else {
-      // Fallback success message if running locally without backend
-      alert("Deposit request recorded! Processing time is 2-10 minutes.");
-    }
+    const existingDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
+    existingDeposits.unshift(newDeposit);
+    localStorage.setItem('deposits', JSON.stringify(existingDeposits));
   } catch (err) {
-    // Catches network errors ("Failed to fetch") without breaking UI
-    console.warn("Backend unavailable, logged locally:", err);
-    alert("Deposit request submitted! Processing time is 2-10 minutes.");
+    console.error("Failed to save to local deposits list:", err);
   }
 
-  // Reset form inputs and close modal
+  // 2. Try sending to backend API if present
+  try {
+    await fetch('/api/deposit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newDeposit)
+    });
+  } catch (err) {
+    console.warn("Backend sync offline, stored locally for Admin panel.");
+  }
+
+  alert("Deposit submitted successfully! Processing time is 2-10 minutes.");
+
+  // Reset input & close modal
   if (txIdInput) txIdInput.value = '';
   if (typeof closeDepositModal === 'function') {
     closeDepositModal();
@@ -1438,8 +1606,14 @@ window.submitDepositTransaction = async function() {
     const modal = document.getElementById('depositModal');
     if (modal) modal.style.display = 'none';
   }
+
+  // Refresh user or admin record view if function exists
+  if (typeof loadRecordData === 'function') {
+    loadRecordData();
+  }
 };
 
+  
     function processWithdrawalsTimeout() {
       let now = new Date().getTime();
       let updated = false;
