@@ -195,6 +195,22 @@
       </div>
     </div>
 
+<!-- VIP TASKS & MILESTONES VIEW -->
+<div id="v-vip" class="view" style="display: none; padding: 16px;">
+  <div style="background:#1e293b; border-radius:12px; padding:16px; border:1px solid #f59e0b; margin-bottom:16px;">
+    <h3 style="color:#f59e0b; margin:0 0 8px 0; font-size:18px;">⭐ VIP Referral Milestones</h3>
+    <p style="color:#94a3b8; font-size:13px; margin:0;">
+      Invite active investors (registered + deposited + bought a machine) to earn instant UGX rewards and unlock higher VIP tiers.
+    </p>
+    <div style="margin-top:12px; background:#0f172a; padding:10px; border-radius:8px; font-weight:bold; color:#10b981;">
+      Active Team Investors: <span id="vipCurrentTeamCount">0</span>
+    </div>
+  </div>
+
+  <!-- Milestone Progress Cards Container -->
+  <div id="vipMilestonesContainer"></div>
+</div>
+
     <!-- HOME VIEW -->
     <div id="v-home" class="view active">
       <div id="broadcastBanner" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); padding: 10px; border-radius: 8px; margin-bottom: 14px; font-size: 11px; color: var(--warning); cursor: pointer;" onclick="openModal('announcementModal')">
@@ -215,10 +231,11 @@
           <div style="font-size: 16px; margin-bottom: 4px;">⚡</div>
           <div style="font-size: 11px; font-weight: 600;">Machines</div>
         </div>
-        <div style="background: var(--card); padding: 14px 10px; border-radius: 10px; text-align: center; border: 1px solid var(--border); cursor: pointer;" onclick="openModal('vipTaskModal')">
-          <div style="font-size: 16px; margin-bottom: 4px;">🏆</div>
-          <div style="font-size: 11px; font-weight: 600;">VIP Task</div>
-        </div>
+        <div onclick="openVipTaskView()" style="background: var(--card); padding: 14px 10px; cursor: pointer;">
+  <div style="font-size: 16px; margin-bottom: 4px;">🏆</div>
+  <div style="font-size: 11px; font-weight: 600;">VIP Task</div>
+</div>
+
         <div style="background: var(--card); padding: 14px 10px; border-radius: 10px; text-align: center; border: 1px solid var(--border); cursor: pointer;" onclick="claimDailyReward()">
           <div style="font-size: 16px; margin-bottom: 4px;">🎁</div>
           <div style="font-size: 11px; font-weight: 600;">Daily Bonus</div>
@@ -701,11 +718,57 @@
   <!-- APPLICATION SCRIPT -->
   <script>
     const milestones = [
-      { target: 3, reward: 15000, level: 'VIP 1' },
-      { target: 10, reward: 30000, level: 'VIP 2' },
-      { target: 20, reward: 100000, level: 'VIP 3' },
-      { target: 50, reward: 200000, level: 'VIP 4' }
-    ];
+  { target: 3, reward: 15000, level: 'VIP 1' },
+  { target: 10, reward: 30000, level: 'VIP 2' },
+  { target: 25, reward: 50000, level: 'VIP 3' },
+  { target: 40, reward: 100000, level: 'VIP 4' }
+];
+
+function renderVipTaskPage() {
+  const container = document.getElementById('vipMilestonesContainer');
+  const countDisplay = document.getElementById('vipCurrentTeamCount');
+  if (!container) return;
+
+  const count = typeof teamCount !== 'undefined' ? teamCount : 0;
+  if (countDisplay) countDisplay.innerText = count;
+
+  let html = '';
+
+  milestones.forEach((m) => {
+    const isUnlocked = count >= m.target;
+    const progressPct = Math.min((count / m.target) * 100, 100);
+
+    html += `
+      <div style="background:#1e293b; border-radius:12px; padding:14px; margin-bottom:12px; border:1px solid ${isUnlocked ? '#10b981' : '#334155'};">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-weight:bold; color:${isUnlocked ? '#10b981' : '#f8fafc'};">${m.level} Goal: ${m.target} Investors</span>
+          <span style="color:#f59e0b; font-weight:bold;">+UGX ${m.reward.toLocaleString()}</span>
+        </div>
+        
+        <div style="background:#0f172a; height:8px; border-radius:4px; overflow:hidden; margin-bottom:8px;">
+          <div style="background:${isUnlocked ? '#10b981' : '#f59e0b'}; width:${progressPct}%; height:100%;"></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8;">
+          <span>Progress: ${count} / ${m.target}</span>
+          <span>${isUnlocked ? '✅ Reward Unlocked' : `${m.target - count} more needed`}</span>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function openVipTaskView() {
+  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+  const vipView = document.getElementById('v-vip');
+  if (vipView) {
+    vipView.style.display = 'block';
+    renderVipTaskPage();
+  }
+}
+
 
     const seriesDurations = { 'B': 25, 'R': 15, 'K': 10, 'J': 7, 'VIP': 5 };
 
@@ -759,6 +822,66 @@
       for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
       return code;
     }
+
+// Function to update the Referee's team count in Firestore
+async function checkAndQualifyReferral(currentUserId) {
+  try {
+    const userDocRef = db.collection('users').doc(currentUserId);
+    const userDoc = await userDocRef.get();
+    
+    if (!userDoc.exists) return;
+    const userData = userDoc.data();
+
+    // Only proceed if user has deposited, purchased a machine, and has a referrer
+    if (userData.hasDeposited && userData.hasPurchased && userData.referredBy) {
+      
+      // Query the referee's document using their invite code
+      const referrerQuery = await db.collection('users')
+        .where('inviteCode', '==', userData.referredBy)
+        .limit(1)
+        .get();
+
+      if (!referrerQuery.empty) {
+        const referrerDoc = referrerQuery.docs[0];
+        const referrerRef = referrerDoc.ref;
+        const referrerData = referrerDoc.data();
+
+        let qualifiedList = referrerData.qualifiedReferrals || [];
+
+        // Check if this user was already counted
+        if (!qualifiedList.includes(currentUserId)) {
+          qualifiedList.push(currentUserId);
+          const newTeamCount = qualifiedList.length;
+
+          // Check Milestone Progress
+          let bonusAmount = 0;
+          let newVipTier = referrerData.vipTier || 0;
+          let claimed = referrerData.claimedMilestones || [];
+
+          milestones.forEach(m => {
+            if (newTeamCount >= m.target && !claimed.includes(m.target)) {
+              bonusAmount += m.reward;
+              claimed.push(m.target);
+              if (m.target >= 3) newVipTier = 1; // Unlock VIP 1 at 3 referrals
+            }
+          });
+
+          // Atomically update the referrer's profile in Firestore
+          await referrerRef.update({
+            teamCount: newTeamCount,
+            qualifiedReferrals: qualifiedList,
+            balance: firebase.firestore.FieldValue.increment(bonusAmount),
+            vipTier: newVipTier,
+            claimedMilestones: claimed
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Referral Sync Error:", err);
+  }
+}
+
 
     function switchAuthTab(tab) {
       document.getElementById('loginForm').style.display = (tab === 'login') ? 'block' : 'none';
@@ -1744,7 +1867,7 @@ window.submitDepositTransaction = async function() {
       openModal('machineDetailModal');
     }
  
-    function buyMachine(id) {
+    async function buyMachine(id) {
       let m = machines.find(item => item.id === id);
       if (!m) return;
 
@@ -1778,9 +1901,16 @@ window.submitDepositTransaction = async function() {
       deposits.unshift({ desc: 'Rented ' + m.name, amt: '-UGX ' + m.price.toLocaleString(), rawAmt: -m.price, timestamp: nowTime });
 
       saveUserData();
-      updateUI();
-      alert('Successfully deployed ' + m.name + '!');
-    }
+
+// ADD THIS TRIGGER HERE:
+if (window.firebaseDb && currentUserId) {
+  await checkAndQualifyReferral(currentUserId);
+}
+
+updateUI();
+alert('Successfully deployed ' + m.name + '!');
+}
+
 
     function receiveIncome(index) {
       let machine = activeMachines[index];
