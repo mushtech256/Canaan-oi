@@ -15,46 +15,52 @@
 
   <!-- Firebase App v10 Modular SDK -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, deleteDoc, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, addDoc, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBGy98JNl66ViuT7Q4K_uPYKBrZNE0WxR0",
-      authDomain: "canaan-oi.firebaseapp.com",
-      projectId: "canaan-oi",
-      storageBucket: "canaan-oi.firebasestorage.app",
-      messagingSenderId: "818655797480",
-      appId: "1:818655797480:web:78f3dcf9945ebb918e295d"
-    };
+  const firebaseConfig = {
+  apiKey: "AIzaSyBGy98JNl66ViuT7Q4K_uPYKBrZNE0WxR0",
+  authDomain: "canaan-oi.firebaseapp.com",
+  projectId: "canaan-oi",
+  storageBucket: "canaan-oi.firebasestorage.app",
+  messagingSenderId: "818655797480",
+  appId: "1:818655797480:web:78f3dcf9945ebb918e295d"
+};
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+  // Attach instances globally
+  window.firebaseAuth = auth;
+  window.firebaseDb = db;
+  window.db = db;
 
-    window.firebaseAuth = auth;
-    window.firebaseDb = db;
-    window.firebaseFns = {
-      createUserWithEmailAndPassword,
-      signInWithEmailAndPassword,
-      signOut,
-      onAuthStateChanged,
-      sendPasswordResetEmail,
-      updatePassword,
-      doc,
-      setDoc,
-      getDoc,
-      updateDoc,
-      deleteDoc,
-      collection,
-      query,
-      where,
-      getDocs,
-      addDoc,
-      increment,
-      arrayUnion
-    };
-  </script>
+  // Attach functions globally
+  window.firebaseFns = {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    sendPasswordResetEmail,
+    updatePassword,
+    doc,
+    setDoc,
+    getDoc,
+    updateDoc,
+    deleteDoc,
+    collection,
+    query,
+    where,
+    getDocs,
+    addDoc,
+    increment,
+    arrayUnion
+  };
+
+  // Signal that Firebase module is fully initialized
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
 
   <style>
     :root {
@@ -178,7 +184,6 @@
       <button type="submit" class="btn">Register Account</button>
     </form>
   </div>
-<button onclick="checkAndQualifyReferral('1WugYEX9JLfZVaxP7v5T'); alert('Referral check completed!')" style="position:fixed; top:10px; right:10px; z-index:99999; background:red; color:white; padding:10px; border-radius:5px;">Fix Friend Ref</button>
 
   <!-- MAIN APP CONTAINER -->
   <div id="appContainer">
@@ -835,62 +840,51 @@ function openVipTaskView() {
 // Function to update the Referee's team count in Firestore
 async function checkAndQualifyReferral(currentUserId) {
   try {
-    const userDocRef = db.collection('users').doc(currentUserId);
-    const userDoc = await userDocRef.get();
-    
-    if (!userDoc.exists) return;
-    const userData = userDoc.data();
+    // Get current user document
+    const userDocRef = doc(db, "users", currentUserId);
+    const userDocSnap = await getDoc(userDocRef);
 
-    // Only proceed if user has deposited, purchased a machine, and has a referrer
-    if (userData.hasDeposited && userData.hasPurchased && userData.referredBy) {
-      
-      // Query the referee's document using their invite code
-      const referrerQuery = await db.collection('users')
-        .where('inviteCode', '==', userData.referredBy)
-        .limit(1)
-        .get();
+    if (!userDocSnap.exists()) return;
+    const userData = userDocSnap.data();
 
-      if (!referrerQuery.empty) {
-        const referrerDoc = referrerQuery.docs[0];
-        const referrerRef = referrerDoc.ref;
-        const referrerData = referrerDoc.data();
+    // Check qualification flags
+    if (!userData.hasDeposited || !userData.hasPurchased || !userData.referredBy) {
+      console.log("User not eligible or missing referrer code.");
+      return;
+    }
 
-        let qualifiedList = referrerData.qualifiedReferrals || [];
+    // Query referrer by inviteCode
+    const q = query(collection(db, "users"), where("inviteCode", "==", userData.referredBy));
+    const querySnap = await getDocs(q);
 
-        // Check if this user was already counted
-        if (!qualifiedList.includes(currentUserId)) {
-          qualifiedList.push(currentUserId);
-          const newTeamCount = qualifiedList.length;
+    if (!querySnap.empty) {
+      const referrerDoc = querySnap.docs[0];
+      const referrerRef = doc(db, "users", referrerDoc.id);
+      const referrerData = referrerDoc.data();
 
-          // Check Milestone Progress
-          let bonusAmount = 0;
-          let newVipTier = referrerData.vipTier || 0;
-          let claimed = referrerData.claimedMilestones || [];
+      let qualifiedList = referrerData.qualifiedReferrals || [];
 
-          milestones.forEach(m => {
-            if (newTeamCount >= m.target && !claimed.includes(m.target)) {
-              bonusAmount += m.reward;
-              claimed.push(m.target);
-              if (m.target >= 3) newVipTier = 1; // Unlock VIP 1 at 3 referrals
-            }
-          });
+      if (!qualifiedList.includes(currentUserId)) {
+        qualifiedList.push(currentUserId);
 
-          // Atomically update the referrer's profile in Firestore
-          await referrerRef.update({
-            teamCount: newTeamCount,
-            qualifiedReferrals: qualifiedList,
-            balance: firebase.firestore.FieldValue.increment(bonusAmount),
-            vipTier: newVipTier,
-            claimedMilestones: claimed
-          });
-        }
+        await updateDoc(referrerRef, {
+          teamCount: increment(1),
+          qualifiedReferrals: qualifiedList
+        });
+
+        await updateDoc(userDocRef, {
+          referralQualified: true
+        });
+
+        console.log("Referral successfully qualified and teamCount updated!");
       }
+    } else {
+      console.error("No referrer found matching code:", userData.referredBy);
     }
   } catch (err) {
     console.error("Referral Sync Error:", err);
   }
 }
-
 
     function switchAuthTab(tab) {
       document.getElementById('loginForm').style.display = (tab === 'login') ? 'block' : 'none';
@@ -1151,23 +1145,33 @@ async function checkAndQualifyReferral(currentUserId) {
         return;
       }
 
-      try {
-        const { collection, query, where, getDocs, signInWithEmailAndPassword } = window.firebaseFns;
-        const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) {
-          alert('⚠️ No account found with this phone number.');
-          return;
-        }
-        let userEmail = '';
-        querySnapshot.forEach((docSnap) => { userEmail = docSnap.data().email; });
+        try {
+    const { collection, query, where, getDocs, signInWithEmailAndPassword } = window.firebaseFns;
+    
+    const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
+    const querySnapshot = await getDocs(q);
 
-        let userCredential = await signInWithEmailAndPassword(window.firebaseAuth, userEmail, password);
-        currentUserId = userCredential.user.uid;
-        await loadUserData();
-      } catch (error) {
-        alert('Login Failed: Invalid credentials.');
-      }
+    if (querySnapshot.empty) {
+      alert("⚠️ No account found with this phone number.");
+      return;
+    }
+
+    let userEmail = "";
+    querySnapshot.forEach((docSnap) => { userEmail = docSnap.data().email; });
+
+    if (!userEmail) {
+      alert("⚠️ No email linked to this phone number.");
+      return;
+    }
+
+    let userCredential = await signInWithEmailAndPassword(window.firebaseAuth, userEmail, password);
+    currentUserId = userCredential.user.uid;
+    await loadUserData();
+
+  } catch (error) {
+    console.error("Login error details:", error);
+    alert("Login Error: " + error.message);
+  }
     }
 
     async function loadUserData() {
