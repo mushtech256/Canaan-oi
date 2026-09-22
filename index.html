@@ -717,6 +717,14 @@
 
   <!-- APPLICATION SCRIPT -->
   <script>
+  (function captureReferralCode() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const ref = urlParams.get('ref');
+  if (ref) {
+    localStorage.setItem('pendingRefCode', ref.trim());
+  }
+})();
+
     const milestones = [
   { target: 3, reward: 15000, level: 'VIP 1' },
   { target: 10, reward: 30000, level: 'VIP 2' },
@@ -1091,7 +1099,9 @@ async function checkAndQualifyReferral(currentUserId) {
       let email = document.getElementById('regEmail').value.trim();
       let password = document.getElementById('regPassword').value;
       let confirmPassword = document.getElementById('regConfirmPassword').value;
-
+      let regRefEl = document.getElementById('regReferralInput');
+      let referredByCode = (regRefEl && regRefEl.value.trim()) ? regRefEl.value.trim() : (localStorage.getItem('pendingRefCode') || '');
+  
       if (!rawPhone.match(/^07[0-9]{8}$/)) {
         alert('⚠️ Please enter a valid 10-digit phone number starting with 07.');
         return;
