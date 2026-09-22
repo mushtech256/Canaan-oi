@@ -1560,19 +1560,23 @@ async function adminApproveDeposit(targetUserId, depIndex) {
     if (userDocRef && userData) {
       let dList = userData.deposits || [];
       dList.push({
-        id: targetDep.id || ('DEP-' + Date.now()),
-        amount: depAmount,
-        txId: targetDep.txId || '',
-        status: 'Approved',
-        timestamp: new Date().toISOString()
-      });
+  id: targetDep.id || ('DEP-' + Date.now()),
+  desc: 'Deposit Approved',
+  amt: '+UGX ' + Number(depAmount).toLocaleString(),
+  amount: depAmount,
+  txId: targetDep.txId || '',
+  status: 'Approved',
+  timestamp: new Date().toISOString()
+});
+
 
       await updateDoc(userDocRef, {
         balance: (Number(userData.balance) || 0) + depAmount,
         hasDeposited: true,
         deposits: dList
       });
-    }
+   await checkAndQualifyReferral(targetUserId);
+ }
 
     // 4. Update local storage deposit state
     allDeposits[depIndex].status = 'Approved';
@@ -1618,13 +1622,16 @@ async function adminRejectDeposit(targetUserId, depIndex) {
 
     if (userDocRef && userData) {
       let dList = userData.deposits || [];
-      dList.push({
-        id: targetDep.id || ('DEP-' + Date.now()),
-        amount: Number(targetDep.rawAmt || targetDep.amt) || 0,
-        txId: targetDep.txId || '',
-        status: 'Rejected',
-        timestamp: new Date().toISOString()
-      });
+                dList.push({
+            id: targetDep.id || ('DEP-' + Date.now()),
+            desc: 'Deposit Rejected',
+            amt: 'UGX ' + (Number(targetDep.rawAmt || targetDep.amt) || 0).toLocaleString(),
+            amount: Number(targetDep.rawAmt || targetDep.amt) || 0,
+            txId: targetDep.txId || '',
+            status: 'Rejected',
+            timestamp: new Date().toISOString()
+          });
+          
 
       await updateDoc(userDocRef, { deposits: dList });
     }
