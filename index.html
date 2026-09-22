@@ -840,26 +840,28 @@ function openVipTaskView() {
 // Function to update the Referee's team count in Firestore
 async function checkAndQualifyReferral(currentUserId) {
   try {
-    // Get current user document
-    const userDocRef = doc(db, "users", currentUserId);
+    if (!window.firebaseDb || !currentUserId) return;
+
+    const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFns;
+    const userDocRef = doc(window.firebaseDb, "users", currentUserId);
     const userDocSnap = await getDoc(userDocRef);
 
     if (!userDocSnap.exists()) return;
     const userData = userDocSnap.data();
 
-    // Check qualification flags
-    if (!userData.hasDeposited || !userData.hasPurchased || !userData.referredBy) {
+    // Check if user has purchased and has a valid referrer
+    if (!userData.hasPurchased || !userData.referredBy) {
       console.log("User not eligible or missing referrer code.");
       return;
     }
 
     // Query referrer by inviteCode
-    const q = query(collection(db, "users"), where("inviteCode", "==", userData.referredBy));
+    const q = query(collection(window.firebaseDb, "users"), where("inviteCode", "==", userData.referredBy));
     const querySnap = await getDocs(q);
 
     if (!querySnap.empty) {
       const referrerDoc = querySnap.docs[0];
-      const referrerRef = doc(db, "users", referrerDoc.id);
+      const referrerRef = doc(window.firebaseDb, "users", referrerDoc.id);
       const referrerData = referrerDoc.data();
 
       let qualifiedList = referrerData.qualifiedReferrals || [];
@@ -1925,9 +1927,13 @@ window.submitDepositTransaction = async function() {
       saveUserData();
 
 // ADD THIS TRIGGER HERE:
-if (window.firebaseDb && window.currentUser) {
-  await checkAndQualifyReferral(window.currentUser.uid);
+if (window.firebaseDb) {
+  const activeUid = window.currentUser?.uid || currentUserId;
+  if (activeUid) {
+    await checkAndQualifyReferral(activeUid);
+  }
 }
+
 updateUI();
 alert('Successfully deployed ' + m.name + '!');
 }
@@ -2034,10 +2040,38 @@ alert('Successfully deployed ' + m.name + '!');
       updateUI();
     }
 
-    function renderTeamView() {
-      document.getElementById('refLinkText').value = window.location.origin + window.location.pathname + '?ref=' + inviteCode;
-      document.getElementById('teamMembersCount').innerText = Number(teamCount) || 0;
+    async function renderTeamView() {
+  const refLinkInput = document.getElementById('refLinkText');
+  const countEl = document.getElementById('teamMembersCount');
+
+  if (refLinkInput) {
+    refLinkInput.value = window.location.origin + window.location.pathname + '?ref=' + (inviteCode || '');
+  }
+
+  if (countEl && window.firebaseDb && window.currentUser) {
+    try {
+      const { doc, getDoc } = window.firebaseFns;
+      const userDocRef = doc(window.firebaseDb, "users", window.currentUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const liveCount = userDocSnap.data().teamCount || 0;
+        teamCount = liveCount; // sync local memory
+        localStorage.setItem('teamCount', liveCount); // sync localStorage
+        countEl.innerText = liveCount;
+        return;
+      }
+    } catch (e) {
+      console.error("Error loading team count:", e);
     }
+  }
+
+  // Fallback if offline
+  if (countEl) {
+    countEl.innerText = Number(teamCount) || 0;
+  }
+}
+
 
     function copyRefLink() {
       navigator.clipboard.writeText(document.getElementById('refLinkText').value);
@@ -2054,7 +2088,8 @@ alert('Successfully deployed ' + m.name + '!');
       let vipTierEl = document.getElementById('userVipTier');
       if (vipTierEl) vipTierEl.innerText = vipTier;
       
-      renderTeamView();
+      renderTeamView().catch(console.error);
+      
 
       let container = document.getElementById('recordsContainer');
       if (container) {
