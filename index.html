@@ -1925,10 +1925,9 @@ window.submitDepositTransaction = async function() {
       saveUserData();
 
 // ADD THIS TRIGGER HERE:
-if (window.firebaseDb && currentUserId) {
-  await checkAndQualifyReferral(currentUserId);
+if (window.firebaseDb && window.currentUser) {
+  await checkAndQualifyReferral(window.currentUser.uid);
 }
-
 updateUI();
 alert('Successfully deployed ' + m.name + '!');
 }
