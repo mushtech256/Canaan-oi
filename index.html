@@ -2212,10 +2212,9 @@ async function proceedToDepositStep2() {
   }
 
   try {
-    // Import Firestore module helpers directly
+    // Safely load doc and getDoc helpers
     const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
 
-    // Fetch the document
     const docRef = doc(window.db, "settings", "paymentConfig");
     const docSnap = await getDoc(docRef);
 
@@ -2224,25 +2223,23 @@ async function proceedToDepositStep2() {
       const depositNumbers = data.depositNumbers;
 
       if (depositNumbers && depositNumbers.length > 0) {
-        // Select a random receiver number from the array
+        // Pick a random phone number from array
         const randomIndex = Math.floor(Math.random() * depositNumbers.length);
         const selected = depositNumbers[randomIndex];
 
-        // Fill in the UI
         const phoneElem = document.getElementById("displayMerchantPhone");
         const nameElem = document.getElementById("displayMerchantName");
 
         if (phoneElem) phoneElem.innerText = selected.phone;
         if (nameElem) nameElem.innerText = selected.name;
       }
-    } else {
-      console.error("No paymentConfig document found!");
     }
   } catch (error) {
-    console.error("Error fetching payment details:", error);
+    console.error("Error fetching deposit details:", error);
   }
 }
 
+// Expose function globally so button onclick works in ES Module
 window.proceedToDepositStep2 = proceedToDepositStep2;
 
 
