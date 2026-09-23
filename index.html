@@ -2211,33 +2211,37 @@ async function proceedToDepositStep2() {
     summaryEl.innerText = amountInput.value || '0';
   }
 
-  // Fetch dynamic merchant array from Firestore
   try {
-    const docRef = doc(db, "settings", "paymentConfig");
+    // Import Firestore helpers dynamically if not available globally
+    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+
+    const docRef = doc(window.db, "settings", "paymentConfig");
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
       const depositNumbers = docSnap.data().depositNumbers;
 
       if (depositNumbers && depositNumbers.length > 0) {
-        // Pick a random merchant
+        // Pick a random number from your list
         const randomIndex = Math.floor(Math.random() * depositNumbers.length);
         const selected = depositNumbers[randomIndex];
 
-        // Update HTML elements
+        // Update UI elements
         const phoneElem = document.getElementById("displayMerchantPhone");
         const nameElem = document.getElementById("displayMerchantName");
 
         if (phoneElem) phoneElem.innerText = selected.phone;
         if (nameElem) nameElem.innerText = selected.name;
       }
+    } else {
+      console.error("No paymentConfig document found in Firestore!");
     }
   } catch (error) {
-    console.error("Error fetching payment config:", error);
+    console.error("Error fetching deposit details:", error);
   }
 }
 
-// CRITICAL for ES6 Modules: Expose function to global HTML onclick events
+// Make accessible to onclick handlers
 window.proceedToDepositStep2 = proceedToDepositStep2;
 
 function submitDepositTransaction() {
