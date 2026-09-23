@@ -402,11 +402,11 @@
       <div style="background: var(--bg); padding: 12px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 14px; font-size: 12px;">
         <div style="margin-bottom: 8px;">
           <span style="color: var(--mut); font-size: 10px; display: block;">MERCHANT NUMBER</span>
-          <strong style="font-size: 16px; color: var(--accent);">0795160094</strong>
+          <strong id="displayMerchantPhone" style="font-size: 16px; color: var(--accent);">Loading...</strong>
         </div>
         <div style="margin-bottom: 8px; border-top: 1px solid var(--border); padding-top: 6px;">
           <span style="color: var(--mut); font-size: 10px; display: block;">ACCOUNT NAME</span>
-          <strong style="color: var(--text);">JOSEPH BYABASAIJA</strong>
+          <strong id="displayMerchantName" style="color: var(--text);">Loading...</strong> 
         </div>
         <div style="border-top: 1px solid var(--border); padding-top: 6px;">
           <span style="color: var(--mut); font-size: 10px; display: block;">AMOUNT TO SEND</span>
@@ -843,45 +843,68 @@ async function checkAndQualifyReferral(currentUserId) {
     if (!window.firebaseDb || !currentUserId) return;
 
     const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFns;
+    
+    // 1. Get current buyer's data
     const userDocRef = doc(window.firebaseDb, "users", currentUserId);
     const userDocSnap = await getDoc(userDocRef);
 
-    if (!userDocSnap.exists()) return;
+    if (!userDocSnap.exists()) {
+      console.log("Buyer document not found in Firestore.");
+      return;
+    }
+    
     const userData = userDocSnap.data();
+    console.log("Buyer Data loaded:", userData);
 
-    // Check if user has purchased and has a valid referrer
-    if (!userData.hasPurchased || !userData.referredBy) {
-      console.log("User not eligible or missing referrer code.");
+    // If already qualified or no referrer, stop
+    if (userData.referralQualified) {
+      console.log("Referral already qualified previously.");
       return;
     }
 
-    // Query referrer by inviteCode
-    const q = query(collection(window.firebaseDb, "users"), where("inviteCode", "==", userData.referredBy));
+    if (!userData.referredBy) {
+      console.log("No referredBy code present on buyer.");
+      return;
+    }
+
+    // Clean up referrer code (trim spaces)
+    const cleanRefCode = String(userData.referredBy).trim();
+    console.log("Searching for inviter with inviteCode:", cleanRefCode);
+
+    // 2. Query referrer by inviteCode
+    const q = query(
+      collection(window.firebaseDb, "users"), 
+      where("inviteCode", "==", cleanRefCode)
+    );
     const querySnap = await getDocs(q);
 
-    if (!querySnap.empty) {
-      const referrerDoc = querySnap.docs[0];
-      const referrerRef = doc(window.firebaseDb, "users", referrerDoc.id);
-      const referrerData = referrerDoc.data();
+    if (querySnap.empty) {
+      console.error("No inviter document matched inviteCode:", cleanRefCode);
+      return;
+    }
 
-      let qualifiedList = referrerData.qualifiedReferrals || [];
+    // 3. Inviter found -> Update teamCount
+    const referrerDoc = querySnap.docs[0];
+    const referrerRef = doc(window.firebaseDb, "users", referrerDoc.id);
+    const referrerData = referrerDoc.data();
 
-      if (!qualifiedList.includes(currentUserId)) {
-        qualifiedList.push(currentUserId);
+    let qualifiedList = referrerData.qualifiedReferrals || [];
 
-        await updateDoc(referrerRef, {
-          teamCount: increment(1),
-          qualifiedReferrals: qualifiedList
-        });
+    if (!qualifiedList.includes(currentUserId)) {
+      qualifiedList.push(currentUserId);
 
-        await updateDoc(userDocRef, {
-          referralQualified: true
-        });
+      // Increment inviter's teamCount
+      await updateDoc(referrerRef, {
+        teamCount: increment(1),
+        qualifiedReferrals: qualifiedList
+      });
 
-        console.log("Referral successfully qualified and teamCount updated!");
-      }
-    } else {
-      console.error("No referrer found matching code:", userData.referredBy);
+      // Mark buyer as qualified
+      await updateDoc(userDocRef, {
+        referralQualified: true
+      });
+
+      console.log("SUCCESS: Team count incremented for inviter UID:", referrerDoc.id);
     }
   } catch (err) {
     console.error("Referral Sync Error:", err);
@@ -2175,7 +2198,7 @@ function closeDepositModal() {
   if (modal) modal.style.display = 'none';
 }
 
-function proceedToDepositStep2() {
+async function proceedToDepositStep2() {
   const step1 = document.getElementById('depositStep1');
   const step2 = document.getElementById('depositStep2');
 
@@ -2187,7 +2210,34 @@ function proceedToDepositStep2() {
   if (amountInput && summaryEl) {
     summaryEl.innerText = amountInput.value || '0';
   }
+
+  // Fetch rotating merchant details from Firestore
+  try {
+    // Compatible with standard/v8 Firebase setup:
+    const docSnap = await db.collection("settings").doc("paymentConfig").get();
+
+    if (docSnap.exists) {
+      const data = docSnap.data();
+      const depositNumbers = data.depositNumbers;
+
+      if (depositNumbers && depositNumbers.length > 0) {
+        // Pick a random merchant
+        const randomIndex = Math.floor(Math.random() * depositNumbers.length);
+        const selected = depositNumbers[randomIndex];
+
+        // Update UI
+        const phoneElem = document.getElementById("displayMerchantPhone");
+        const nameElem = document.getElementById("displayMerchantName");
+
+        if (phoneElem) phoneElem.innerText = selected.phone;
+        if (nameElem) nameElem.innerText = selected.name;
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching deposit config:", error);
+  }
 }
+
 
 function submitDepositTransaction() {
   const txId = document.getElementById('depositTxIdInput')?.value.trim();
