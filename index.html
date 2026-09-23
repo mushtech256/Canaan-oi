@@ -487,40 +487,44 @@
       </div>
 
       <!-- HARDWARE MACHINE MANAGER -->
-      <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;">
-        <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">⚡ Machine Manager (Add / Modify)</div>
-        <div class="form-group" style="margin-bottom: 6px;">
-          <input type="text" id="adminMachId" placeholder="Machine ID (e.g. b5, vip5)">
-        </div>
-        <div class="form-group" style="margin-bottom: 6px;">
-          <select id="adminMachSeries">
-            <option value="B">B-SERIES</option>
-            <option value="R">R-SERIES</option>
-            <option value="K">K-SERIES</option>
-            <option value="J">J-SERIES</option>
-            <option value="VIP">VIP</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom: 6px;">
-          <input type="text" id="adminMachName" placeholder="Name (e.g. B5 Machine)">
-        </div>
-        <div class="form-group" style="margin-bottom: 6px;">
-          <input type="number" id="adminMachPrice" placeholder="Rental Price (UGX)">
-        </div>
-        <div class="form-group" style="margin-bottom: 6px;">
-          <input type="number" id="adminMachDaily" placeholder="Daily Yield (UGX)">
-        </div>
-        <div class="form-group" style="margin-bottom: 6px;">
-          <input type="text" id="adminMachImage" placeholder="Image URL (https://...)">
-        </div>
-        <div class="form-group" style="margin-bottom: 6px;">
-          <input type="number" id="adminMachReqInvestors" placeholder="Req. Investors (for VIP only)" value="0">
-        </div>
-        <button class="btn" style="background: var(--accent); color: #000; padding: 8px; font-size: 11px; margin-bottom: 8px;" onclick="adminSaveMachine()">Add / Save Machine</button>
-        
-        <div style="font-size: 11px; font-weight: 700; color: var(--mut); margin: 6px 0 4px 0;">Existing Machines Catalog:</div>
-        <div id="adminMachineList" style="max-height: 120px; overflow-y: auto; font-size: 11px;"></div>
-      </div>
+<div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;">
+  <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">⚡ Machine Manager (Add / Modify)</div>
+  
+  <div class="form-group" style="margin-bottom: 6px;">
+    <input type="text" id="adminMachId" placeholder="Machine ID (e.g. b5, vip5)">
+  </div>
+  
+  <div class="form-group" style="margin-bottom: 6px;">
+    <select id="adminMachSeries" style="width:100%; padding:8px; border-radius:6px; border:1px solid #334155; background:#0f172a !important; color:#ffffff !important; font-size:12px;">
+      <option value="F" style="background:#1e293b; color:#fff;">F-SERIES</option>
+      <option value="B" style="background:#1e293b; color:#fff;">B-SERIES</option>
+      <option value="R" style="background:#1e293b; color:#fff;">R-SERIES</option>
+      <option value="K" style="background:#1e293b; color:#fff;">K-SERIES</option>
+      <option value="J" style="background:#1e293b; color:#fff;">J-SERIES</option>
+      <option value="VIP" style="background:#1e293b; color:#fff;">VIP</option>
+      <option value="COMING_SOON" style="background:#1e293b; color:#fff;">COMING SOON</option>
+    </select>
+  </div>
+
+  <div class="form-group" style="margin-bottom: 6px;">
+    <input type="text" id="adminMachName" placeholder="Name (e.g. B5 Machine)">
+  </div>
+  <div class="form-group" style="margin-bottom: 6px;">
+    <input type="number" id="adminMachPrice" placeholder="Rental Price (UGX)">
+  </div>
+  <div class="form-group" style="margin-bottom: 6px;">
+    <input type="number" id="adminMachDaily" placeholder="Daily Yield (UGX)">
+  </div>
+  <div class="form-group" style="margin-bottom: 6px;">
+    <input type="text" id="adminMachImage" placeholder="Image URL (https://...)">
+  </div>
+
+  <button class="btn" style="width:100%; padding:10px; background:#00e676; color:#000; font-weight:bold; border-radius:6px; margin-top:6px;" onclick="adminSaveMachineFromForm()">Add / Save Machine</button>
+
+  <div style="font-size: 11px; font-weight: 700; color: var(--mut); margin: 12px 0 4px 0;">Existing Machines Catalog:</div>
+  <div id="adminMachineList" style="max-height: 200px; overflow-y: auto; font-size: 11px;"></div>
+</div>
+
 
       <!-- USER LOOKUP & CONTROL -->
       <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;">
@@ -1266,7 +1270,12 @@ async function loadAdminDashboardData() {
           <div>
             <b>Phone:</b> ${uData.phone || 'N/A'}<br>
             <b>Email:</b> ${uData.email || 'N/A'}<br>
-            <b>Balance:</b> UGX ${(Number(uData.balance)||0).toLocaleString()}
+            <b>Balance:</b> UGX ${(Number(uData.balance)||0).toLocaleString()}<br>
+            <b>Status:</b> ${uData.isBanned ? '<span style="color:#ef4444; font-weight:bold;">BANNED</span>' : '<span style="color:#22c55e;">ACTIVE</span>'}
+          </div>
+          <div>
+            <button class="btn" style="padding:2px 6px; font-size:10px; background:#eab308; margin-bottom:2px;" onclick="adminDirectResetPassword('${userId}', '${uData.phone}')">Reset Pass</button><br>
+            <button class="btn" style="padding:2px 6px; font-size:10px; background:${uData.isBanned ? '#22c55e' : '#ef4444'};" onclick="adminToggleBanById('${userId}', ${!!uData.isBanned})">${uData.isBanned ? 'Unban' : 'Ban'}</button>
           </div>
         </div>
       `;
@@ -1279,11 +1288,11 @@ async function loadAdminDashboardData() {
         dormantUsersHtml += userInfoSnippet;
       }
 
-      // Check Firestore user document for pending withdrawals
+      // Track completed and pending withdrawals
       let userWithdrawals = uData.withdrawals || [];
       userWithdrawals.forEach((w, wIndex) => {
         let wAmount = Number(w.rawAmount || w.amount) || 0;
-        if (w.status === 'Succeed') {
+        if (w.status === 'Succeed' || w.status === 'Approved' || w.status === 'Completed') {
           overallTotalWithdrawals += wAmount;
         } else if (w.status === 'Pending' || w.status === 'Processing') {
           pendingWithdrawalsHtml += `
@@ -1303,12 +1312,12 @@ async function loadAdminDashboardData() {
       });
     });
 
-    // Load and render pending deposits from localStorage / Firestore
+    // Track completed and pending deposits
     const allDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
     allDeposits.forEach((dep, depIndex) => {
       let dAmount = Number(dep.amt || dep.rawAmt) || 0;
 
-      if (dep.status === 'Approved') {
+      if (dep.status === 'Approved' || dep.status === 'Completed' || dep.status === 'Succeed') {
         overallTotalDeposits += dAmount;
       }
 
@@ -1329,7 +1338,7 @@ async function loadAdminDashboardData() {
       }
     });
 
-    // Update DOM Elements
+    // Update Dashboard DOM Stats
     const elTotalUsers = document.getElementById('adminStatTotalUsers');
     if (elTotalUsers) elTotalUsers.innerText = String(totalUsers);
 
@@ -1357,11 +1366,15 @@ async function loadAdminDashboardData() {
     const pendingDepEl = document.getElementById('adminPendingDepositsQueue');
     if (pendingDepEl) pendingDepEl.innerHTML = pendingDepositsHtml || '<div style="font-size:12px; color:var(--mut); padding:6px;">No pending deposits</div>';
 
+    // Render machines inside admin panel
+    adminRenderMachineControls();
+
   } catch (e) {
     console.error("Error loading admin dashboard:", e);
   }
 }
 
+// Check user status and lookup details
 async function adminCheckUserStatus() {
   let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
   let resEl = document.getElementById('adminUserLookupResult');
@@ -1389,6 +1402,7 @@ async function adminCheckUserStatus() {
   } catch (e) { resEl.innerText = "Error: " + e.message; }
 }
 
+// Ban or unban user via admin phone input
 async function adminBanUserAction() {
   let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
   if (!rawPhone.match(/^07[0-9]{8}$/)) {
@@ -1408,34 +1422,64 @@ async function adminBanUserAction() {
         await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: newBanState });
         alert(`User status updated to: ${newBanState ? 'BANNED' : 'ACTIVE'}`);
         adminCheckUserStatus();
+        loadAdminDashboardData();
       });
     }
   } catch (e) { alert("Error: " + e.message); }
 }
 
+// Ban/Unban helper by User ID
+async function adminToggleBanById(userId, currentState) {
+  try {
+    const { doc, updateDoc } = window.firebaseFns;
+    await updateDoc(doc(window.firebaseDb, "users", userId), { isBanned: !currentState });
+    alert(`User status updated to: ${!currentState ? 'BANNED' : 'ACTIVE'}`);
+    loadAdminDashboardData();
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+// Reset password and display the new password to admin
 async function adminResetUserPassword() {
   let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
   if (!rawPhone.match(/^07[0-9]{8}$/)) {
     alert("⚠️ Please enter a valid 10-digit phone number.");
     return;
   }
+  let newPass = prompt("Enter new password for " + rawPhone + ":");
+  if (!newPass) return;
+
   try {
-    const { collection, query, where, getDocs, sendPasswordResetEmail } = window.firebaseFns;
+    const { collection, query, where, getDocs, updateDoc, doc, sendPasswordResetEmail } = window.firebaseFns;
     const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
     const snap = await getDocs(q);
     if (snap.empty) {
       alert("❌ User not found.");
     } else {
-      let uEmail = '';
-      snap.forEach(d => { uEmail = d.data().email; });
-      if (uEmail) {
-        await sendPasswordResetEmail(window.firebaseAuth, uEmail);
-        alert(`✅ Password reset link sent to user's email: ${uEmail}`);
-      }
+      snap.forEach(async (d) => {
+        let u = d.data();
+        await updateDoc(doc(window.firebaseDb, "users", d.id), { password: newPass });
+        if (u.email) {
+          try { await sendPasswordResetEmail(window.firebaseAuth, u.email); } catch(err){}
+        }
+        alert(`✅ Password successfully reset to: ${newPass}\n\nProvide this password to the user.`);
+      });
     }
   } catch (e) { alert("Error: " + e.message); }
 }
 
+// Direct password reset by User ID
+async function adminDirectResetPassword(userId, phone) {
+  let newPass = prompt("Enter new password for " + (phone || userId) + ":");
+  if (!newPass) return;
+
+  try {
+    const { doc, updateDoc } = window.firebaseFns;
+    await updateDoc(doc(window.firebaseDb, "users", userId), { password: newPass });
+    alert(`✅ Password for ${phone} updated to: ${newPass}`);
+  } catch (e) { alert("Error resetting password: " + e.message); }
+}
+
+// Submit user apology for banned accounts
 async function submitUserApology() {
   let msg = document.getElementById('userApologyInput').value.trim();
   if (!msg) return alert('⚠️ Please enter an apology message.');
@@ -1446,6 +1490,7 @@ async function submitUserApology() {
   } catch (e) { alert('Error: ' + e.message); }
 }
 
+// Send system broadcast
 async function adminSendBroadcast() {
   let msg = document.getElementById('adminBroadcastInput').value.trim();
   if (!msg) return alert('⚠️ Please type a message.');
@@ -1459,6 +1504,7 @@ async function adminSendBroadcast() {
   } catch (e) { alert('Error broadcasting: ' + e.message); }
 }
 
+// Approve Withdrawal
 async function adminApproveWithdrawal(targetUserId, wIndex) {
   try {
     const { doc, getDoc, updateDoc } = window.firebaseFns;
@@ -1477,6 +1523,7 @@ async function adminApproveWithdrawal(targetUserId, wIndex) {
   } catch (e) { alert('Error: ' + e.message); }
 }
 
+// Reject Withdrawal
 async function adminRejectWithdrawal(targetUserId, wIndex) {
   try {
     const { doc, getDoc, updateDoc } = window.firebaseFns;
@@ -1495,6 +1542,154 @@ async function adminRejectWithdrawal(targetUserId, wIndex) {
     }
   } catch (e) { alert('Error: ' + e.message); }
 }
+
+// Machine Controls (Render, Toggle, Edit Series Tag, and Add New Machine)
+function adminRenderMachineControls() {
+  const container = document.getElementById('adminMachineManagerList');
+  if (!container) return;
+
+  const defaultMachines = [
+    { id: 'm1', name: 'Machine Alpha', series: 'F-SERIES', price: 50000, daily: 5000, active: true },
+    { id: 'm2', name: 'Machine Beta', series: 'F-SERIES', price: 100000, daily: 12000, active: true },
+    { id: 'm3', name: 'Machine Gamma', series: 'COMING SOON', price: 250000, daily: 30000, active: false }
+  ];
+
+  const machines = JSON.parse(localStorage.getItem('adminMachines') || JSON.stringify(defaultMachines));
+  let html = '';
+
+  // Form to add new machine
+  html += `
+    <div style="background:var(--card); padding:12px; border-radius:8px; margin-bottom:12px; border:1px dashed var(--accent);">
+      <b style="color:var(--accent); font-size:12px; display:block; margin-bottom:8px;">➕ ADD NEW MACHINE</b>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <input type="text" id="newMachineName" placeholder="Machine Name (e.g., F-Series Pro)" style="padding:6px; font-size:11px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:4px;">
+        <input type="text" id="newMachineSeries" placeholder="Series Tag (e.g., F-SERIES, COMING SOON)" style="padding:6px; font-size:11px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:4px;">
+        <div style="display:flex; gap:6px;">
+          <input type="number" id="newMachinePrice" placeholder="Price (UGX)" style="flex:1; padding:6px; font-size:11px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:4px;">
+          <input type="number" id="newMachineDaily" placeholder="Daily Income (UGX)" style="flex:1; padding:6px; font-size:11px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:4px;">
+        </div>
+        <button class="btn" style="padding:6px; font-size:11px; background:#00e676; color:#000; font-weight:bold; margin-top:4px;" onclick="adminAddNewMachine()">+ Create & Publish Machine</button>
+      </div>
+    </div>
+  `;
+
+  // Existing Machines List
+  machines.forEach((m, idx) => {
+    html += `
+      <div style="background:var(--card); padding:10px; border-radius:6px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <b>${m.name}</b> <span style="background:#334155; padding:2px 6px; border-radius:4px; font-size:10px; color:#facc15;">${m.series || 'NO SERIES'}</span><br>
+          <small style="color:var(--mut);">Price: UGX ${(m.price||0).toLocaleString()} | Daily: UGX ${(m.daily||0).toLocaleString()}</small><br>
+          <small style="color:${m.active ? '#22c55e' : '#ef4444'}; font-weight:bold;">Status: ${m.active ? 'ACTIVE' : 'DISABLED'}</small>
+        </div>
+        <div style="display:flex; gap:4px; flex-direction:column;">
+          <button class="btn" style="padding:4px 8px; font-size:10px; background:#3b82f6;" onclick="adminSetMachineSeries(${idx})">Edit Series</button>
+          <button class="btn" style="padding:4px 8px; font-size:10px; background:${m.active ? '#ef4444' : '#22c55e'};" onclick="adminToggleMachineState(${idx})">${m.active ? 'Disable' : 'Enable'}</button>
+          <button class="btn" style="padding:2px 6px; font-size:10px; background:#64748b;" onclick="adminDeleteMachine(${idx})">Delete</button>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+// Function to add a brand new machine
+function adminAddNewMachine() {
+  const name = document.getElementById('newMachineName').value.trim();
+  const series = document.getElementById('newMachineSeries').value.trim();
+  const price = Number(document.getElementById('newMachinePrice').value) || 0;
+  const daily = Number(document.getElementById('newMachineDaily').value) || 0;
+
+  if (!name) return alert('⚠️ Please enter a machine name.');
+
+  const defaultMachines = [
+    { id: 'm1', name: 'Machine Alpha', series: 'F-SERIES', price: 50000, daily: 5000, active: true },
+    { id: 'm2', name: 'Machine Beta', series: 'F-SERIES', price: 100000, daily: 12000, active: true },
+    { id: 'm3', name: 'Machine Gamma', series: 'COMING SOON', price: 250000, daily: 30000, active: false }
+  ];
+
+  const machines = JSON.parse(localStorage.getItem('adminMachines') || JSON.stringify(defaultMachines));
+  
+  const newMachineObj = {
+    id: 'm_' + Date.now(),
+    name: name,
+    series: series ? series.toUpperCase() : 'NEW RELEASE',
+    price: price,
+    daily: daily,
+    active: true
+  };
+
+  machines.push(newMachineObj);
+  localStorage.setItem('adminMachines', JSON.stringify(machines));
+  alert(`✅ Machine "${name}" added successfully!`);
+  adminRenderMachineControls();
+}
+
+// Function to delete a machine
+function adminDeleteMachine(index) {
+  if (!confirm("Are you sure you want to delete this machine?")) return;
+  const machines = JSON.parse(localStorage.getItem('adminMachines') || '[]');
+  machines.splice(index, 1);
+  localStorage.setItem('adminMachines', JSON.stringify(machines));
+  adminRenderMachineControls();
+}
+
+function adminToggleMachineState(index) {
+  const machines = JSON.parse(localStorage.getItem('adminMachines') || '[]');
+  if (machines[index]) {
+    machines[index].active = !machines[index].active;
+    localStorage.setItem('adminMachines', JSON.stringify(machines));
+    adminRenderMachineControls();
+  }
+}
+
+function adminSetMachineSeries(index) {
+  const machines = JSON.parse(localStorage.getItem('adminMachines') || '[]');
+  if (machines[index]) {
+    let newSeries = prompt("Enter Machine Series Name (e.g., F-SERIES, COMING SOON):", machines[index].series || "");
+    if (newSeries !== null) {
+      machines[index].series = newSeries.toUpperCase().trim();
+      localStorage.setItem('adminMachines', JSON.stringify(machines));
+      adminRenderMachineControls();
+    }
+  }
+}
+
+// Function to handle saving/adding new machines from the HTML form
+function adminSaveMachineFromForm() {
+  const id = document.getElementById('adminMachId')?.value.trim();
+  const series = document.getElementById('adminMachSeries')?.value || 'F';
+  const name = document.getElementById('adminMachName')?.value.trim();
+  const price = Number(document.getElementById('adminMachPrice')?.value) || 0;
+  const daily = Number(document.getElementById('adminMachDaily')?.value) || 0;
+  const imgUrl = document.getElementById('adminMachImage')?.value.trim() || '';
+
+  if (!name) return alert('⚠️ Please enter a machine name.');
+
+  const machines = JSON.parse(localStorage.getItem('adminMachines') || '[]');
+
+  const newMachine = {
+    id: id || ('m_' + Date.now()),
+    series: series,
+    name: name,
+    price: price,
+    daily: daily,
+    image: imgUrl,
+    active: true
+  };
+
+  machines.push(newMachine);
+  localStorage.setItem('adminMachines', JSON.stringify(machines));
+  alert(`✅ Machine "${name}" saved successfully!`);
+
+  // Refresh controls if available
+  if (typeof adminRenderMachineControls === 'function') {
+    adminRenderMachineControls();
+  }
+}
+
+
 async function submitWithdrawalRequest() {
   const amountInput = document.getElementById('withdrawAmountInput');
   const phoneInput = document.getElementById('withdrawPhoneInput');
