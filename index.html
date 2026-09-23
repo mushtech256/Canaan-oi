@@ -1688,34 +1688,101 @@ async function adminRejectDeposit(targetUserId, depIndex) {
 }
 
 let pendingDepositAmount = 0;
+document.addEventListener("DOMContentLoaded", function() {
+  const amountInput = document.getElementById('depositAmountInput');
+  if (amountInput) amountInput.placeholder = "Minimum 30,000";
+});
 
 window.proceedToDepositStep2 = function() {
   const phoneEl = document.getElementById('depositPhoneInput');
   const amountEl = document.getElementById('depositAmountInput');
-  
+
   const phone = phoneEl ? phoneEl.value.trim() : '';
   const amount = amountEl ? Number(amountEl.value) : 0;
 
-  if (!phone || phone.length < 10) {
+    if (!phone || phone.length < 10) {
     alert("Please enter a valid phone number.");
     return;
-  }  
-  if (!amount || amount < 5000) {
-    alert("Minimum deposit amount is UGX 5,000");
+  }
+  if (!amount || amount < 30000) {
+    alert("Minimum deposit amount is UGX 30,000");
     return;
   }
-  pendingDepositAmount = amount;
 
+  pendingDepositAmount = amount;
+  
   const summaryEl = document.getElementById('summaryDepositAmount');
   if (summaryEl) {
-    summaryEl.innerText = amount.toLocaleString();
+  summaryEl.innerText = amount.toLocaleString();  
   }
+
+  // 1. Pick deposit contact
+  const depositNumbers = [
+    { phone: "0753519831", name: "ABIFAISI KABAIKARAMU" },
+    { phone: "0771916374", name: "Beatrice Tuhaise" }
+  ];
+  const selected = depositNumbers[Math.floor(Math.random() * depositNumbers.length)];
+
+  // 2. Inject values into existing elements
+  const phoneElem = document.getElementById("displayMerchantPhone");
+  const nameElem = document.getElementById("displayMerchantName");
+
+  if (phoneElem) phoneElem.innerText = selected.phone;
+  if (nameElem) nameElem.innerText = selected.name;
+
+  // 3. Update Title & Label texts
+  document.querySelectorAll("#depositModal *, #depositStep2 *, .modal-content *").forEach(el => {
+    if (el.children.length === 0 && el.innerText && el.innerText.includes("Merchant Payment Info")) {
+      el.innerText = el.innerText.replace("Merchant Payment Info", "Payment Info");
+    }
+  });
+
+  // Replace 'MERCHANT NUMBER' label text with 'PHONE NUMBER'
+  const labels = document.querySelectorAll("#depositStep2 span, #depositStep2 label");
+  labels.forEach(lbl => {
+    if (lbl.innerText.includes("MERCHANT NUMBER")) {
+      lbl.innerText = "PHONE NUMBER";
+    }
+  });
+  
+
+  // 4. Add Copy Buttons next to Phone and Name if not already there
+  if (phoneElem && !document.getElementById("copyPhoneBtn")) {
+    const phoneBtn = document.createElement("button");
+    phoneBtn.id = "copyPhoneBtn";
+    phoneBtn.type = "button";
+    phoneBtn.innerText = "Copy";
+    phoneBtn.style.cssText = "background:#00e676; color:#000; border:none; padding:4px 10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px; margin-left:10px;";
+    phoneBtn.onclick = function() {
+      navigator.clipboard.writeText(selected.phone);
+      phoneBtn.innerText = "Copied!";
+      setTimeout(() => { phoneBtn.innerText = "Copy"; }, 2000);
+    };
+    phoneElem.parentNode.appendChild(phoneBtn);
+  }
+
+  if (nameElem && !document.getElementById("copyNameBtn")) {
+    const nameBtn = document.createElement("button");
+    nameBtn.id = "copyNameBtn";
+    nameBtn.type = "button";
+    nameBtn.innerText = "Copy";
+    nameBtn.style.cssText = "background:#00e676; color:#000; border:none; padding:4px 10px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px; margin-left:10px;";
+    nameBtn.onclick = function() {
+      navigator.clipboard.writeText(selected.name);
+      nameBtn.innerText = "Copied!";
+      setTimeout(() => { nameBtn.innerText = "Copy"; }, 2000);
+    };
+    nameElem.parentNode.appendChild(nameBtn);
+  }
+
+  // Switch screens
   const step1 = document.getElementById('depositStep1');
   const step2 = document.getElementById('depositStep2');
 
   if (step1) step1.style.display = 'none';
   if (step2) step2.style.display = 'block';
 };
+
 
 window.refreshDepositState = function() {
   const inputEl = document.getElementById('depositTxIdInput');
@@ -2198,7 +2265,7 @@ function closeDepositModal() {
   if (modal) modal.style.display = 'none';
 }
 
-async function proceedToDepositStep2() {
+function proceedToDepositStep2() {
   const step1 = document.getElementById('depositStep1');
   const step2 = document.getElementById('depositStep2');
 
@@ -2208,40 +2275,27 @@ async function proceedToDepositStep2() {
   const amountInput = document.getElementById('depositAmountInput');
   const summaryEl = document.getElementById('summaryDepositAmount');
   if (amountInput && summaryEl) {
-    summaryEl.innerText = amountInput.value || '0';
+    summaryEl.innerText = (amountInput.value || '0') + ' UGX';
   }
 
-  try {
-    // Safely load doc and getDoc helpers
-    const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+  // Local list of deposit numbers
+  const depositNumbers = [
+    { phone: "0753519831", name: "ABIFAISI KABAIKARAMU" },
+    { phone: "0771916374", name: "Beatrice Tuhaise" }
+  ];
 
-    const docRef = doc(window.db, "settings", "paymentConfig");
-    const docSnap = await getDoc(docRef);
+  // Pick one randomly
+  const selected = depositNumbers[Math.floor(Math.random() * depositNumbers.length)];
 
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const depositNumbers = data.depositNumbers;
+  // Update HTML elements immediately
+  const phoneElem = document.getElementById("displayMerchantPhone");
+  const nameElem = document.getElementById("displayMerchantName");
 
-      if (depositNumbers && depositNumbers.length > 0) {
-        // Pick a random phone number from array
-        const randomIndex = Math.floor(Math.random() * depositNumbers.length);
-        const selected = depositNumbers[randomIndex];
-
-        const phoneElem = document.getElementById("displayMerchantPhone");
-        const nameElem = document.getElementById("displayMerchantName");
-
-        if (phoneElem) phoneElem.innerText = selected.phone;
-        if (nameElem) nameElem.innerText = selected.name;
-      }
-    }
-  } catch (error) {
-    console.error("Error fetching deposit details:", error);
-  }
+  if (phoneElem) phoneElem.innerText = selected.phone;
+  if (nameElem) nameElem.innerText = selected.name;
 }
 
-// Expose function globally so button onclick works in ES Module
 window.proceedToDepositStep2 = proceedToDepositStep2;
-
 
 function submitDepositTransaction() {
   const txId = document.getElementById('depositTxIdInput')?.value.trim();
