@@ -490,18 +490,19 @@ window.firebaseFns = {
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
-        <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-          <div style="font-size: 10px; color: var(--mut);">Total Deposited</div>
-          <div id="adminStatTotalDeposits" style="font-size: 13px; font-weight: 800; color: var(--accent);">UGX 0</div>
-          <div style="font-size: 9px; color: var(--mut); margin-top:2px;">Weekly: <span id="adminStatWeeklyDeposits">UGX 0</span></div>
-        </div>
-        <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-          <div style="font-size: 10px; color: var(--mut);">Total Withdrawn</div>
-          <div id="adminStatTotalWithdrawals" style="font-size: 13px; font-weight: 800; color: var(--danger);">UGX 0</div>
-          <div style="font-size: 9px; color: var(--mut); margin-top:2px;">Weekly: <span id="adminStatWeeklyWithdrawals">UGX 0</span></div>
-        </div>
-      </div>
+<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
+  <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+    <div>Total Deposited</div>
+    <div id="adminStatTotalDeposits" style="font-size: 16px; font-weight: 800; color: var(--accent);">UGX 0</div>
+    <div style="font-size: 10px; color: var(--mut); margin-top: 2px;">Weekly: <span id="adminStatWeeklyDeposits">UGX 0</span></div>
+  </div>
+
+  <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+    <div>Total Withdrawn</div>
+    <div id="adminStatTotalWithdrawals" style="font-size: 16px; font-weight: 800; color: var(--danger);">UGX 0</div>
+    <div style="font-size: 10px; color: var(--mut); margin-top: 2px;">Weekly: <span id="adminStatWeeklyWithdrawals">UGX 0</span></div>
+  </div>
+</div>
 
       <!-- WHATSAPP LINK MANAGEMENT -->
       <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;">
@@ -1574,20 +1575,30 @@ async function adminSendBroadcast() {
 // Approve Withdrawal
 async function adminApproveWithdrawal(targetUserId, wIndex) {
   try {
-    const { doc, getDoc, updateDoc } = window.firebaseFns;
+    const { doc, getDoc, updateDoc, increment } = window.firebaseFns;
     let uRef = doc(window.firebaseDb, "users", targetUserId);
     let snap = await getDoc(uRef);
     if (snap.exists()) {
       let uData = snap.data();
       let wList = uData.withdrawals || [];
-      if (wList[wIndex]) {
-        wList[wIndex].status = 'Succeed';
-        await updateDoc(uRef, { withdrawals: wList });
-        alert('✅ Withdrawal approved!');
-        loadAdminDashboardData();
-      }
+          if (wList[wIndex]) {
+      let wAmount = Number(wList[wIndex].rawAmount || wList[wIndex].amount || 0);
+      wList[wIndex].status = 'Succeed';
+      
+      await updateDoc(uRef, { withdrawals: wList });
+
+      // Update global platform stats
+      const statsRef = doc(window.firebaseDb, "platform_stats", "global");
+      await updateDoc(statsRef, {
+        totalWithdrawals: increment(wAmount)
+      });
+
+            alert('✅ Withdrawal approved!');
+      loadAdminDashboardData();
     }
-  } catch (e) { alert('Error: ' + e.message); }
+  }
+} catch (e) { alert('Error: ' + e.message); }
+
 }
 
 // Reject Withdrawal
@@ -1828,7 +1839,7 @@ async function submitWithdrawalRequest() {
 
 async function adminApproveDeposit(targetUserId, depIndex) {
   try {
-    const { doc, getDoc, updateDoc, collection, query, where, getDocs } = window.firebaseFns;
+    const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFns;
     
     // 1. Get deposit from localStorage
     let allDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
@@ -1883,7 +1894,12 @@ async function adminApproveDeposit(targetUserId, depIndex) {
     // 4. Update local storage deposit state
     allDeposits[depIndex].status = 'Approved';
     localStorage.setItem('deposits', JSON.stringify(allDeposits));
-
+    // Update global platform stats
+    const statsRef = doc(window.firebaseDb, "platform_stats", "global");
+    await updateDoc(statsRef, {
+      totalDeposits: increment(depAmount)
+    });
+    
     alert("✅ Deposit approved successfully! UGX " + depAmount.toLocaleString());
     loadAdminDashboardData();
   } catch (e) {
@@ -2830,6 +2846,34 @@ navigator.serviceWorker.register(swUrl).catch(() => {});
 
   });
 }
+// Lifetime Platform Stats Listener
+function listenToPlatformStats() {
+  if (!window.firebaseFns || !window.firebaseDb) return;
+
+  const { doc, onSnapshot } = window.firebaseFns;
+  const statsRef = doc(window.firebaseDb, "platform_stats", "global");
+
+  onSnapshot(statsRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      
+      const depElem = document.getElementById("adminStatTotalDeposits");
+      const withElem = document.getElementById("adminStatTotalWithdrawals");
+
+      if (depElem) {
+        depElem.innerText = "UGX " + Number(data.totalDeposits || 0).toLocaleString();
+      }
+      if (withElem) {
+        withElem.innerText = "UGX " + Number(data.totalWithdrawals || 0).toLocaleString();
+      }
+    }
+  });
+}
+
+// Auto-start listening on load
+window.addEventListener('load', () => {
+  setTimeout(listenToPlatformStats, 1500);
+});
 
 </script>
 </body>
