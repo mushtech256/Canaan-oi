@@ -25,8 +25,8 @@
   <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, addDoc, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
+  import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, addDoc, increment, arrayUnion, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  
   const firebaseConfig = {
   apiKey: "AIzaSyBGy98JNl66ViuT7Q4K_uPYKBrZNE0WxR0",
   authDomain: "canaan-oi.firebaseapp.com",
@@ -45,26 +45,28 @@
   window.db = db;
 
   // Attach functions globally
-  window.firebaseFns = {
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut,
-    onAuthStateChanged,
-    sendPasswordResetEmail,
-    updatePassword,
-    doc,
-    setDoc,
-    getDoc,
-    updateDoc,
-    deleteDoc,
-    collection,
-    query,
-    where,
-    getDocs,
-    addDoc,
-    increment,
-    arrayUnion
-  };
+window.firebaseFns = {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  updatePassword,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  increment,
+  arrayUnion,
+  orderBy,
+  onSnapshot
+};
 
   // Signal that Firebase module is fully initialized
   window.dispatchEvent(new Event('firebase-ready'));
@@ -1225,6 +1227,11 @@ async function checkAndQualifyReferral(currentUserId) {
 
     async function handleLogin(e) {
       e.preventDefault();
+        if (!window.firebaseFns) {
+    alert("Firebase is still initializing. Please wait a second and try again.");
+    return;
+  }
+  
       let rawPhone = document.getElementById('loginPhone').value.trim();
       let password = document.getElementById('loginPassword').value;
 
@@ -2592,114 +2599,192 @@ function submitDepositTransaction() {
     closeDepositModal();
 }
 
-// --- CHAT SYSTEM LOGIC ---
+// --- CHAT SYSTEM LOGIC (FIREBASE REALTIME) ---
 
-// 1. Send Message from User
-function sendUserMessage() {
+// 1. User sends private message to Admin
+async function sendUserMessage() {
   const input = document.getElementById('userChatMessageInput');
   const text = input ? input.value.trim() : '';
   if (!text) return;
 
-  const currentUser = (typeof currentUserPhone !== 'undefined' && currentUserPhone) ? currentUserPhone : 'User';
-  let chatData = JSON.parse(localStorage.getItem('platform_chats') || '[]');
+  const currentUser = (typeof currentUserPhone !== 'undefined' && currentUserPhone) 
+    ? currentUserPhone 
+    : (localStorage.getItem('userPhone') || 'Guest_' + Math.floor(Math.random()*1000));
 
-  chatData.push({
-    sender: currentUser,
-    text: text,
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    isAdmin: false
-  });
-
-  localStorage.setItem('platform_chats', JSON.stringify(chatData));
-  input.value = '';
-  renderUserChat();
-  renderAdminChat();
+  try {
+    const { addDoc, collection } = window.firebaseFns;
+    await addDoc(collection(window.firebaseDb, "chats"), {
+      sender: currentUser,
+      targetUser: currentUser,
+      text: text,
+      timestamp: Date.now(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isAdmin: false,
+      isBroadcast: false
+    });
+    input.value = '';
+  } catch (err) {
+    console.error("Chat send error:", err);
+  }
 }
 
-// 2. Display Messages on User Screen
+// 2. Real-time User Chat Listener
 function renderUserChat() {
   const windowEl = document.getElementById('userChatWindow');
-  if (!windowEl) return;
-
-  const currentUser = (typeof currentUserPhone !== 'undefined' && currentUserPhone) ? currentUserPhone : 'User';
-  let chatData = JSON.parse(localStorage.getItem('platform_chats') || '[]');
+  if (!windowEl || !window.firebaseFns) return;
   
-  windowEl.innerHTML = `<div style="background:#334155; color:#fff; padding:8px 12px; border-radius:10px; align-self:flex-start; max-width:85%; font-size:12px;">👋 Hello! Send your question here and our admin team will reply shortly.</div>`;
 
-  chatData.forEach(msg => {
-    const isMe = msg.sender === currentUser && !msg.isAdmin;
-    const msgDiv = document.createElement('div');
-    msgDiv.style.cssText = `padding:8px 12px; border-radius:10px; max-width:85%; font-size:12px; ${
-      msg.isAdmin 
-        ? 'background:#ff9800; color:#000; align-self:flex-start; font-weight:600;' 
-        : isMe 
-          ? 'background:#00e676; color:#000; align-self:flex-end; font-weight:600;' 
-          : 'background:#1e293b; color:#fff; align-self:flex-start;'
-    }`;
-    
-    msgDiv.innerHTML = `<div>${msg.text}</div><div style="font-size:9px; opacity:0.7; text-align:right; margin-top:2px;">${msg.sender} • ${msg.time}</div>`;
-    windowEl.appendChild(msgDiv);
+  const currentUser = (typeof currentUserPhone !== 'undefined' && currentUserPhone) 
+    ? currentUserPhone 
+    : (localStorage.getItem('userPhone') || 'Guest');
+
+  const { collection, query, orderBy, onSnapshot } = window.firebaseFns;
+  const q = query(collection(window.firebaseDb, "chats"), orderBy("timestamp", "asc"));
+
+  onSnapshot(q, (snapshot) => {
+    windowEl.innerHTML = `<div style="background:#334155; color:#fff; padding:8px 12px; border-radius:10px; align-self:flex-start; max-width:85%; font-size:12px;">👋 Hello! Send your question here and our admin team will reply shortly.</div>`;
+
+    snapshot.forEach(doc => {
+      const msg = doc.data();
+      if (msg.isBroadcast || msg.targetUser === currentUser || msg.sender === currentUser) {
+        const msgDiv = document.createElement('div');
+        msgDiv.style.cssText = `padding:8px 12px; border-radius:10px; max-width:85%; font-size:12px; ${
+          msg.isBroadcast
+            ? 'background:#ff9800; color:#000; align-self:center; width:90%; font-weight:600; text-align:center;' 
+            : msg.isAdmin 
+              ? 'background:#00e676; color:#000; align-self:flex-start; font-weight:600;' 
+              : 'background:#1e293b; color:#fff; align-self:flex-end;'
+        }`;
+        
+        msgDiv.innerHTML = `<div>${msg.text}</div><div style="font-size:9px; opacity:0.75; text-align:right; margin-top:2px;">${msg.isBroadcast ? '📢 ANNOUNCEMENT' : msg.sender} • ${msg.time}</div>`;
+        windowEl.appendChild(msgDiv);
+      }
+    });
+    windowEl.scrollTop = windowEl.scrollHeight;
   });
-
-  windowEl.scrollTop = windowEl.scrollHeight;
 }
 
-// 3. Send Admin Reply
-function sendAdminReply() {
-  const input = document.getElementById('adminReplyInput');
-  const text = input ? input.value.trim() : '';
-  if (!text) return;
+// 3. Real-time Admin User Dropdown Listener
+function populateAdminUserList() {
+  const selectEl = document.getElementById('adminUserChatSelect');
+  if (!selectEl || !window.firebaseFns) return;
+  
 
-  let chatData = JSON.parse(localStorage.getItem('platform_chats') || '[]');
-  chatData.push({
-    sender: 'ADMIN',
-    text: text,
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    isAdmin: true
+  const { collection, query, orderBy, onSnapshot } = window.firebaseFns;
+  const q = query(collection(window.firebaseDb, "chats"), orderBy("timestamp", "asc"));
+
+  onSnapshot(q, (snapshot) => {
+    const users = new Set();
+    snapshot.forEach(doc => {
+      const msg = doc.data();
+      if (!msg.isBroadcast && msg.targetUser && msg.targetUser !== 'ALL') {
+        users.add(msg.targetUser);
+      }
+    });
+
+    const currentVal = selectEl.value;
+    selectEl.innerHTML = '<option value="">-- Select a User --</option>';
+
+    users.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u;
+      opt.innerText = u;
+      selectEl.appendChild(opt);
+    });
+
+    if (currentVal) selectEl.value = currentVal;
   });
-
-  localStorage.setItem('platform_chats', JSON.stringify(chatData));
-  input.value = '';
-  renderAdminChat();
-  renderUserChat();
 }
 
-// 4. Display Messages in Admin Panel
-function renderAdminChat() {
+// 4. Load selected user chat in Admin Panel
+function loadSelectedUserChat() {
+  const selectEl = document.getElementById('adminUserChatSelect');
   const listEl = document.getElementById('adminChatList');
-  if (!listEl) return;
+  if (!selectEl || !listEl || !window.firebaseFns) return;
+  
 
-  let chatData = JSON.parse(localStorage.getItem('platform_chats') || '[]');
-  listEl.innerHTML = '';
-
-  if (chatData.length === 0) {
-    listEl.innerHTML = '<div style="color:var(--mut); padding:4px;">No chat messages yet.</div>';
+  const selectedUser = selectEl.value;
+  if (!selectedUser) {
+    listEl.innerHTML = '<div style="color:var(--mut);">Select a user above to view their private chat messages.</div>';
     return;
   }
 
-  chatData.forEach(msg => {
-    const item = document.createElement('div');
-    item.style.cssText = 'padding:6px 0; border-bottom:1px solid var(--border);';
-    item.innerHTML = `<strong style="color:${msg.isAdmin ? '#00e676' : '#60a5fa'};">${msg.sender}:</strong> ${msg.text} <span style="opacity:0.6; font-size:9px;">(${msg.time})</span>`;
-    listEl.appendChild(item);
+  const { collection, query, orderBy, onSnapshot } = window.firebaseFns;
+  const q = query(collection(window.firebaseDb, "chats"), orderBy("timestamp", "asc"));
+
+  onSnapshot(q, (snapshot) => {
+    listEl.innerHTML = '';
+    snapshot.forEach(doc => {
+      const msg = doc.data();
+      if (msg.targetUser === selectedUser && !msg.isBroadcast) {
+        const item = document.createElement('div');
+        item.style.cssText = `padding:6px; border-radius:6px; background:${msg.isAdmin ? 'rgba(0,230,118,0.1)' : 'rgba(255,255,255,0.05)'}; margin-bottom:4px;`;
+        item.innerHTML = `<strong style="color:${msg.isAdmin ? '#00e676' : '#60a5fa'};">${msg.sender}:</strong> ${msg.text} <span style="opacity:0.6; font-size:9px;">(${msg.time})</span>`;
+        listEl.appendChild(item);
+      }
+    });
+    listEl.scrollTop = listEl.scrollHeight;
   });
-
-  listEl.scrollTop = listEl.scrollHeight;
 }
 
-// 5. Connect Chat Trigger to View Switches
-if (typeof goTo === 'function') {
-  const originalGoTo = goTo;
-  goTo = function(viewId) {
-    originalGoTo(viewId);
-    if (viewId === 'chats') {
-      renderUserChat();
-    }
-  };
+// 5. Send Direct Private Reply
+async function sendAdminReply() {
+  const selectEl = document.getElementById('adminUserChatSelect');
+  const input = document.getElementById('adminReplyInput');
+  const selectedUser = selectEl ? selectEl.value : '';
+  const text = input ? input.value.trim() : '';
+
+  if (!selectedUser) {
+    alert('Please select a user to reply to.');
+    return;
+  }
+  if (!text) return;
+
+  try {
+    const { addDoc, collection } = window.firebaseFns;
+    await addDoc(collection(window.firebaseDb, "chats"), {
+      sender: 'ADMIN',
+      targetUser: selectedUser,
+      text: text,
+      timestamp: Date.now(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isAdmin: true,
+      isBroadcast: false
+    });
+    input.value = '';
+  } catch (err) {
+    console.error("Admin reply error:", err);
+  }
 }
-// Auto-load admin chat user list when page loads
+
+// 6. Broadcast Announcement to ALL Users
+async function sendAdminBroadcast() {
+  const input = document.getElementById('adminBroadcastInput');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  try {
+    const { addDoc, collection } = window.firebaseFns;
+    await addDoc(collection(window.firebaseDb, "chats"), {
+      sender: 'ADMIN',
+      targetUser: 'ALL',
+      text: text,
+      timestamp: Date.now(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isAdmin: true,
+      isBroadcast: true
+    });
+    input.value = '';
+    alert('Broadcast announcement posted!');
+  } catch (err) {
+    console.error("Broadcast error:", err);
+  }
+}
+
+// Auto-initialize chat listeners on load
 document.addEventListener('DOMContentLoaded', () => {
   populateAdminUserList();
+  renderUserChat();
 });
 
 
