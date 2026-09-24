@@ -12,7 +12,14 @@
   <meta property="og:description" content="Canaan OI is a trusted mining investment platform offering high-yield hardware machines.">
   <meta property="og:image" content="https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png">
   <meta property="og:type" content="website">
-
+  
+    <!-- PWA & Mobile Web App Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Canaan OI">
+  <meta name="theme-color" content="#0f172a">
+    
   <!-- Firebase App v10 Modular SDK -->
   <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -249,12 +256,13 @@
       </div>
 
       <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-        <a id="managerSupportLink" href="https://wa.me/447456089196" target="_blank" class="btn" style="background: #25D366; color: #fff; flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-          👤 Manager Support
-        </a>
-        <a href="#" target="_blank" class="btn" style="background: var(--card); border: 1px solid var(--border); color: var(--text); flex: 1; font-size: 11px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-          📥 Download App
-        </a>
+        <button class="btn" style="background:transparent; padding:0; color:inherit; font-size:inherit; border:none; text-align:left; cursor:pointer;" onclick="goTo('chats')">
+  👤 Manager Support
+</button>
+
+       <button id="downloadAppBtn" class="btn" style="background:var(--card); color:var(--text); width:100%; text-align:left; padding:10px;" onclick="triggerAppInstall()">
+  📥 Download & Install App
+</button> 
       </div>
 
       <div style="background: var(--card); padding: 14px; border-radius: 10px; border: 1px solid var(--border); text-align: center; cursor: pointer; margin-bottom: 16px;" onclick="goTo('referrals')">
@@ -302,6 +310,23 @@
       
       <div id="machinesGrid" style="display: flex; flex-direction: column; gap: 12px;"></div>
     </div>
+<!-- CHATS VIEW -->
+<div id="v-chats" class="view" style="padding:15px; margin-bottom:70px;">
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:15px;">
+    <h3 style="margin:0 0 12px 0; font-size:15px; color:var(--text);">💬 Live Support & Inquiries</h3>
+
+    <div id="userChatWindow" style="height:300px; overflow-y:auto; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:10px; margin-bottom:12px;">
+      <div style="background:#334155; color:#fff; padding:8px 12px; border-radius:10px; align-self:flex-start; max-width:85%; font-size:12px;">
+        👋 Hello! Send your question here and our admin team will reply shortly.
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="userChatMessageInput" placeholder="Type your message..." style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:12px;">
+      <button class="btn" style="padding:10px 16px; background:#00e676; color:#000; font-weight:bold; width:auto;" onclick="sendUserMessage()">Send</button>
+    </div>
+  </div>
+</div>
 
     <!-- TEAM VIEW -->
     <div id="v-referrals" class="view">
@@ -358,13 +383,15 @@
     </div>
 
     <!-- NAVIGATION BAR -->
-    <nav>
-      <div class="nav-i active" onclick="goTo('home')">Home</div>
-      <div class="nav-i" onclick="goTo('machines')">Machines</div>
-      <div class="nav-i" onclick="goTo('referrals')">Team</div>
-      <div class="nav-i" onclick="goTo('records')">Records</div>
-      <div class="nav-i" onclick="goTo('profile')">Profile</div>
-    </nav>
+<nav>
+  <div class="nav-i active" onclick="goTo('home')">Home</div>
+  <div class="nav-i" onclick="goTo('machines')">Machines</div>
+  <div class="nav-i" onclick="goTo('chats')">Chats</div>
+  <div class="nav-i" onclick="goTo('referrals')">Team</div>
+  <div class="nav-i" onclick="goTo('records')">Records</div>
+  <div class="nav-i" onclick="goTo('profile')">Profile</div>
+</nav>
+
   </div>
 <!-- DEPOSIT MODAL -->
 <div id="depositModal" class="modal" style="display:none;">
@@ -524,6 +551,37 @@
   <div style="font-size: 11px; font-weight: 700; color: var(--mut); margin: 12px 0 4px 0;">Existing Machines Catalog:</div>
   <div id="adminMachineList" style="max-height: 200px; overflow-y: auto; font-size: 11px;"></div>
 </div>
+
+<!-- ADMIN CHAT & BROADCAST CONTROL -->
+<div style="background:var(--bg); padding:12px; border-radius:8px; border:1px solid var(--border); margin-bottom:14px;">
+  <div style="font-size:12px; font-weight:700; color:var(--text); margin-bottom:8px;">💬 Support Chats (Private Inquiries)</div>
+  
+  <!-- Select user to view/reply -->
+  <div style="display:flex; gap:6px; margin-bottom:8px;">
+    <select id="adminUserChatSelect" onchange="loadSelectedUserChat()" style="flex:1; padding:6px; border-radius:6px; background:var(--card); color:var(--text); border:1px solid var(--border); font-size:11px;">
+      <option value="">-- Select a User --</option>
+    </select>
+  </div>
+
+  <div id="adminChatList" style="height:150px; overflow-y:auto; background:var(--card); padding:8px; border-radius:6px; font-size:11px; margin-bottom:8px; display:flex; flex-direction:column; gap:6px;">
+    <div style="color:var(--mut);">Select a user above to view their private chat messages.</div>
+  </div>
+
+  <div style="display:flex; gap:6px; margin-bottom:12px;">
+    <input type="text" id="adminReplyInput" placeholder="Type private reply..." style="flex:1; padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:11px;">
+    <button class="btn" style="padding:8px 12px; background:#00e676; color:#000; font-weight:bold; font-size:11px; width:auto;" onclick="sendAdminReply()">Reply User</button>
+  </div>
+
+  <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+
+  <div style="font-size:12px; font-weight:700; color:var(--warning); margin-bottom:6px;">📢 Broadcast Update to ALL Users</div>
+  <div style="display:flex; gap:6px;">
+    <input type="text" id="adminBroadcastInput" placeholder="Type announcement for all users..." style="flex:1; padding:8px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:11px;">
+    <button class="btn" style="padding:8px 12px; background:#ff9800; color:#000; font-weight:bold; font-size:11px; width:auto;" onclick="sendAdminBroadcast()">Broadcast</button>
+  </div>
+</div>
+
+<!-- USER LOOKUP & CONTROL -->
 
 
       <!-- USER LOOKUP & CONTROL -->
@@ -2145,10 +2203,11 @@ window.submitDepositTransaction = async function() {
       document.querySelectorAll('nav .nav-i').forEach(n => n.classList.remove('active'));
       let target = document.getElementById('v-' + viewName);
       if (target) target.classList.add('active');
-      let navMap = { home: 0, machines: 1, referrals: 2, records: 3, profile: 4 };
-      let navBtns = document.querySelectorAll('nav .nav-i');
-      if (navMap[viewName] !== undefined && navBtns[navMap[viewName]]) navBtns[navMap[viewName]].classList.add('active');
-      if (viewName === 'referrals') renderTeamView();
+      let navMap = { home: 0, machines: 1, chats: 2, referrals: 3, records: 4, profile: 5 };
+let navBtns = document.querySelectorAll('nav .nav-i');
+if (navMap[viewName] !== undefined && navBtns[navMap[viewName]]) navBtns[navMap[viewName]].classList.add('active');
+if (viewName === 'referrals') renderTeamView();
+if (viewName === 'chats') renderUserChat();
     }
 
     function setSeries(s) {
@@ -2529,9 +2588,152 @@ function submitDepositTransaction() {
   }
 
   alert('Deposit submitted successfully! Processing time is 2-10 minutes.');
-  closeDepositModal();
+    closeDepositModal();
 }
 
-  </script>
+// --- CHAT SYSTEM LOGIC ---
+
+// 1. Send Message from User
+function sendUserMessage() {
+  const input = document.getElementById('userChatMessageInput');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  const currentUser = (typeof currentUserPhone !== 'undefined' && currentUserPhone) ? currentUserPhone : 'User';
+  let chatData = JSON.parse(localStorage.getItem('platform_chats') || '[]');
+
+  chatData.push({
+    sender: currentUser,
+    text: text,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    isAdmin: false
+  });
+
+  localStorage.setItem('platform_chats', JSON.stringify(chatData));
+  input.value = '';
+  renderUserChat();
+  renderAdminChat();
+}
+
+// 2. Display Messages on User Screen
+function renderUserChat() {
+  const windowEl = document.getElementById('userChatWindow');
+  if (!windowEl) return;
+
+  const currentUser = (typeof currentUserPhone !== 'undefined' && currentUserPhone) ? currentUserPhone : 'User';
+  let chatData = JSON.parse(localStorage.getItem('platform_chats') || '[]');
+  
+  windowEl.innerHTML = `<div style="background:#334155; color:#fff; padding:8px 12px; border-radius:10px; align-self:flex-start; max-width:85%; font-size:12px;">👋 Hello! Send your question here and our admin team will reply shortly.</div>`;
+
+  chatData.forEach(msg => {
+    const isMe = msg.sender === currentUser && !msg.isAdmin;
+    const msgDiv = document.createElement('div');
+    msgDiv.style.cssText = `padding:8px 12px; border-radius:10px; max-width:85%; font-size:12px; ${
+      msg.isAdmin 
+        ? 'background:#ff9800; color:#000; align-self:flex-start; font-weight:600;' 
+        : isMe 
+          ? 'background:#00e676; color:#000; align-self:flex-end; font-weight:600;' 
+          : 'background:#1e293b; color:#fff; align-self:flex-start;'
+    }`;
+    
+    msgDiv.innerHTML = `<div>${msg.text}</div><div style="font-size:9px; opacity:0.7; text-align:right; margin-top:2px;">${msg.sender} • ${msg.time}</div>`;
+    windowEl.appendChild(msgDiv);
+  });
+
+  windowEl.scrollTop = windowEl.scrollHeight;
+}
+
+// 3. Send Admin Reply
+function sendAdminReply() {
+  const input = document.getElementById('adminReplyInput');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+
+  let chatData = JSON.parse(localStorage.getItem('platform_chats') || '[]');
+  chatData.push({
+    sender: 'ADMIN',
+    text: text,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    isAdmin: true
+  });
+
+  localStorage.setItem('platform_chats', JSON.stringify(chatData));
+  input.value = '';
+  renderAdminChat();
+  renderUserChat();
+}
+
+// 4. Display Messages in Admin Panel
+function renderAdminChat() {
+  const listEl = document.getElementById('adminChatList');
+  if (!listEl) return;
+
+  let chatData = JSON.parse(localStorage.getItem('platform_chats') || '[]');
+  listEl.innerHTML = '';
+
+  if (chatData.length === 0) {
+    listEl.innerHTML = '<div style="color:var(--mut); padding:4px;">No chat messages yet.</div>';
+    return;
+  }
+
+  chatData.forEach(msg => {
+    const item = document.createElement('div');
+    item.style.cssText = 'padding:6px 0; border-bottom:1px solid var(--border);';
+    item.innerHTML = `<strong style="color:${msg.isAdmin ? '#00e676' : '#60a5fa'};">${msg.sender}:</strong> ${msg.text} <span style="opacity:0.6; font-size:9px;">(${msg.time})</span>`;
+    listEl.appendChild(item);
+  });
+
+  listEl.scrollTop = listEl.scrollHeight;
+}
+
+// 5. Connect Chat Trigger to View Switches
+if (typeof goTo === 'function') {
+  const originalGoTo = goTo;
+  goTo = function(viewId) {
+    originalGoTo(viewId);
+    if (viewId === 'chats') {
+      renderUserChat();
+    }
+  };
+}
+// Auto-load admin chat user list when page loads
+document.addEventListener('DOMContentLoaded', () => {
+  populateAdminUserList();
+});
+
+
+// --- PWA / APP INSTALL LOGIC ---
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  const btn = document.getElementById('downloadAppBtn');
+  if (btn) {
+    btn.style.border = '1px solid #00e676';
+  }
+});
+
+function triggerAppInstall() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User installed the app');
+      }
+      deferredPrompt = null;
+    });
+  } else {
+    alert("To install: Open your browser menu (⋮ at top right) and select 'Add to Home screen' or 'Install app'.");
+  }
+}
+
+window.addEventListener('appinstalled', () => {
+  alert('App installed successfully! You can now access it from your phone home screen.');
+  deferredPrompt = null;
+});
+
+</script>
 </body>
 </html>  
