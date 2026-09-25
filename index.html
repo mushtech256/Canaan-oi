@@ -45,34 +45,36 @@
   window.firebaseDb = db;
   window.db = db;
 
-  // Attach functions globally
-window.firebaseFns = {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  updatePassword,
-  doc,
-  setDoc,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  increment,
-  arrayUnion,
-  orderBy,
-  onSnapshot
-};
-// Expose functions globally for direct use
-window.doc = doc;
-window.getDoc = getDoc;
-window.updateDoc = updateDoc;
-window.increment = increment;
+    // Remove `const` and directly assign to window.firebaseFns:
+  window.firebaseFns = {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    sendPasswordResetEmail,
+    updatePassword,
+    doc,
+    setDoc,
+    getDoc,
+    updateDoc,
+    deleteDoc,
+    collection,
+    query,
+    where,
+    getDocs,
+    addDoc,
+    increment,
+    arrayUnion,
+    orderBy,
+    onSnapshot
+  };
+
+  window.doc = doc;
+  window.getDoc = getDoc;
+  window.updateDoc = updateDoc;
+  window.setDoc = setDoc;
+  window.increment = increment;
+  
 
   // Signal that Firebase module is fully initialized
   window.dispatchEvent(new Event('firebase-ready'));
@@ -1378,10 +1380,30 @@ async function loadAdminDashboardData() {
         }
       });
 
-      // 2. Safely render pending deposits
-      const pendingList = Array.isArray(uData.pendingDeposits) ? uData.pendingDeposits : [];
-      pendingList.forEach((dep, depIndex) => {
-        let dAmount = Number(dep.rawAmount || dep.amount || dep.rawAmt || dep.amt) || 0;
+            // 2. Safely render pending deposits (Checking both pendingDeposits and deposits arrays)
+      let allPending = [];
+
+      // Check uData.pendingDeposits array
+      if (Array.isArray(uData.pendingDeposits)) {
+        uData.pendingDeposits.forEach((dep, idx) => {
+          allPending.push({ ...dep, originalIndex: idx, source: 'pendingDeposits' });
+        });
+      }
+
+      // Also check uData.deposits array for items with 'Pending' status
+      if (Array.isArray(uData.deposits)) {
+        uData.deposits.forEach((dep, idx) => {
+          if (dep.status === 'Pending' || dep.status === 'pending' || dep.status === 'Processing') {
+            allPending.push({ ...dep, originalIndex: idx, source: 'deposits' });
+          }
+        });
+      }
+
+      // Render all discovered pending deposits
+allPending.forEach((dep) => {
+    let dAmount = Number(dep.amount || dep.rawAmount || dep.rawAmt || dep.amt || dep.value || dep.depositAmount || dep.topup || dep.sum || dep.price) || 0;
+    let depIndex = dep.originalIndex;
+    
         pendingDepositsHtml += `
           <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:12px; margin-bottom:8px; border-radius:8px;">
             <div>
@@ -1395,7 +1417,7 @@ async function loadAdminDashboardData() {
             </div>
           </div>`;
       });
-
+      
       // Count completed deposits for platform totals
       const userDeposits = Array.isArray(uData.deposits) ? uData.deposits : [];
       userDeposits.forEach((dep) => {
