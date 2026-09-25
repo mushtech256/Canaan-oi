@@ -1862,7 +1862,6 @@ async function adminApproveDeposit(targetUserId, depIndex) {
     const doc = window.doc || window.firebaseFirestore?.doc;
     const getDoc = window.getDoc || window.firebaseFirestore?.getDoc;
     const updateDoc = window.updateDoc || window.firebaseFirestore?.updateDoc;
-    const increment = window.increment || window.firebaseFirestore?.increment;
 
     let userDocRef = doc(window.firebaseDb, "users", targetUserId);
     let snap = await getDoc(userDocRef);
@@ -1872,8 +1871,8 @@ async function adminApproveDeposit(targetUserId, depIndex) {
     }
 
     let userData = snap.data();
-    let pendingList = userData.pendingDeposits || [];
-    let targetDep = pendingList[depIndex];
+    let pendingArr = userData.pendingDeposits || [];
+    let targetDep = pendingArr[depIndex];
 
     if (!targetDep && userData.deposits) {
       targetDep = userData.deposits[depIndex];
@@ -1883,8 +1882,20 @@ async function adminApproveDeposit(targetUserId, depIndex) {
       return alert("Deposit record not found.");
     }
 
-    // Smart Amount Extraction (checks rawAmount, amount, or scans description/txid text for numbers/UGX)
-    let depAmount = Number(targetDep.amount || targetDep.rawAmount || targetDep.rawAmt || targetDep.amt || targetDep.value || targetDep.depositAmount || targetDep.topup || targetDep.sum || targetDep.price) || 0;
+    // Attempt to extract amount, fallback to prompt if 0
+    let depAmount = Number(
+      targetDep.amount || 
+      targetDep.rawAmount || 
+      targetDep.rawAmt || 
+      targetDep.amt || 
+      targetDep.value || 
+      targetDep.depositAmount || 
+      targetDep.topup || 
+      targetDep.sum || 
+      targetDep.price || 
+      0
+    );
+
     if (depAmount === 0) {
       let textToCheck = (targetDep.txid || targetDep.description || targetDep.message || targetDep.text || "").toString();
       let match = textToCheck.match(/UGX\s*([0-9,]+)/i) || textToCheck.match(/([0-9,]{4,})/);
@@ -1893,43 +1904,43 @@ async function adminApproveDeposit(targetUserId, depIndex) {
       }
     }
 
-    let dList = userData.deposits || [];
-    dList.push({
-      id: targetDep.id || ('DEP-' + Date.now()),
-      title: 'Deposit Approved',
-      desc: 'Deposit Approved',
-      type: 'deposit',
-      amt: 'UGX ' + Number(depAmount).toLocaleString(),
-      amount: depAmount,
-      rawAmount: depAmount,
-      txid: targetDep.txid || targetDep.id || '',
-      status: 'Approved',
-      timestamp: new Date().toISOString(),
-      date: new Date().toLocaleDateString()
-    });
+    // If still 0, prompt admin to enter the deposit amount manually so it never gets stuck!
+    if (depAmount <= 0) {
+      let manualInput = prompt("Could not auto-detect amount from record. Please enter the deposit amount in UGX:", "30000");
+      if (!manualInput) return; // cancelled
+      depAmount = Number(manualInput) || 0;
+    }
 
-    let pendingArr = userData.pendingDeposits || [];
+    // Remove from pending list
     if (depIndex >= 0 && depIndex < pendingArr.length) {
       pendingArr.splice(depIndex, 1);
     }
 
+    let currentBalance = Number(userData.balance || userData.walletBalance || 0);
+    let newBalance = currentBalance + depAmount;
+
+    let dList = userData.deposits || [];
+    dList.push({
+      id: targetDep.id || ('DEP-' + Date.now()),
+      title: 'Deposit Approved',
+      type: 'deposit',
+      amount: depAmount,
+      rawAmount: depAmount,
+      status: 'Approved',
+      timestamp: new Date().toISOString()
+    });
+
     await updateDoc(userDocRef, {
-      balance: (Number(userData.balance) || 0) + depAmount,
-      hasDeposited: true,
+      balance: newBalance,
       deposits: dList,
       pendingDeposits: pendingArr
     });
-
-    const statsRef = doc(window.firebaseDb, "platform_stats", "global");
-    await updateDoc(statsRef, {
-      totalDeposits: increment(depAmount)
-    }, { merge: true });
 
     alert('✅ Deposit approved successfully! UGX ' + depAmount.toLocaleString());
     loadAdminDashboardData();
 
   } catch (e) {
-    console.error("Approve error:", e);
+    console.error("Approval error:", e);
     alert("Error approving deposit: " + e.message);
   }
 }
