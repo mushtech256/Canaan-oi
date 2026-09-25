@@ -1377,7 +1377,8 @@ async function loadAdminDashboardData() {
       // 2. Safely render pending deposits
       const userDeposits = Array.isArray(uData.deposits) ? uData.deposits : [];
       userDeposits.forEach((dep, depIndex) => {
-     const rawVal = dep.rawAmt ?? dep.amt ?? dep.amount ?? 0;
+     // CORRECT (Add dep.rawAmount at the beginning):
+const rawVal = dep.rawAmount ?? dep.amount ?? dep.rawAmt ?? dep.amt ?? 0;
     let dAmount = typeof rawVal === 'string' ? (parseFloat(rawVal.replace(/[^0-9.]/g, '')) || 0) : Number(rawVal) || 0;
 
     if (dep.status === 'Approved' || dep.status === 'Completed' || dep.status === 'Succeed') {
@@ -1820,104 +1821,131 @@ async function submitWithdrawalRequest() {
 
 async function adminApproveDeposit(targetUserId, depIndex) {
   try {
-    const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFns;
-    
-      // 1. Fetch user document directly from Firestore
-  let userDocRef = doc(window.firebaseDb, "users", targetUserId);
-  let snap = await getDoc(userDocRef);
+    // 1. Fetch user document directly from Firestore
+    let userDocRef = doc(window.firebaseDb, "users", targetUserId);
+    let snap = await getDoc(userDocRef);
 
-  if (!snap.exists()) {
-    return alert("User record not found in database.");
-  }
+    if (!snap.exists()) {
+      return alert("User record not found in database.");
+    }
 
-  let userData = snap.data();
-  let pendingList = userData.deposits || userData.pendingDeposits || [];
-  let targetDep = pendingList[depIndex];
+    let userData = snap.data();
+    let pendingList = userData.pendingDeposits || [];
+    let targetDep = pendingList[depIndex];
 
-  if (!targetDep) {
-    return alert("Deposit record not found.");
-  }
+    // Fallback: Check deposits array if not found in pending
+    if (!targetDep && userData.deposits) {
+      targetDep = userData.deposits[depIndex];
+    }
 
-  let depAmount = Number(targetDep.rawAmt || targetDep.amount || targetDep.amt) || 0;
-  
-    // 3. Update Firestore balance and deposit status
-    if (userDocRef && userData) {
-      let dList = userData.deposits || [];
-      dList.push({
-  id: targetDep.id || ('DEP-' + Date.now()),
-  desc: 'Deposit Approved',
-  amt: '+UGX ' + Number(depAmount).toLocaleString(),
-  amount: depAmount,
-  txId: targetDep.txId || '',
-  status: 'Approved',
-  timestamp: new Date().toISOString()
-});
+    if (!targetDep) {
+      return alert("Deposit record not found.");
+    }
 
+    let depAmount = Number(targetDep.rawAmount || targetDep.amount || targetDep.rawAmt || targetDep.amt) || 0;
 
-      await updateDoc(userDocRef, {
-        balance: (Number(userData.balance) || 0) + depAmount,
-        hasDeposited: true,
-        deposits: dList
-      });
-   await checkAndQualifyReferral(targetUserId);
- }
+    // 2. Add to user's completed deposits history
+    let dList = userData.deposits || [];
+    dList.push({
+      id: targetDep.id || ('DEP-' + Date.now()),
+      title: 'Deposit Approved',
+      desc: 'Deposit Approved',
+      type: 'deposit',
+      amt: '+UGX ' + Number(depAmount).toLocaleString(),
+      amount: depAmount,
+      rawAmount: depAmount,
+      txId: targetDep.txId || targetDep.txid || '',
+      status: 'Approved',
+      timestamp: new Date().toISOString(),
+      date: new Date().toLocaleDateString()
+    });
 
-    // Update global platform stats
-    const statsRef = doc(window.firebaseDb, "platform_stats", "global");
+    // 3. Remove approved request from pending array
+    let pendingArr = userData.pendingDeposits || [];
+    if (depIndex >= 0 && depIndex < pendingArr.length) {
+      pendingArr.splice(depIndex, 1);
+    }
+
+    // 4. Update Firestore user doc
+    await updateDoc(userDocRef, {
+      balance: (Number(userData.balance) || 0) + depAmount,
+      hasDeposited: true,
+      deposits: dList,
+      pendingDeposits: pendingArr
+    });
+
+    // 5. Update global platform stats
+    const statsRef = doc(window.firebaseDb, "platform_stats", "general");
     await updateDoc(statsRef, {
       totalDeposits: increment(depAmount)
     });
-    
+
     alert("✅ Deposit approved successfully! UGX " + depAmount.toLocaleString());
     loadAdminDashboardData();
   } catch (e) {
     console.error("Approve error:", e);
-    alert('Error approving deposit: ' + e.message);
+    alert("Error approving deposit: " + e.message);
   }
 }
 
 async function adminRejectDeposit(targetUserId, depIndex) {
   try {
-    const { doc, getDoc, updateDoc, collection, query, where, getDocs } = window.firebaseFns;
+    // 1. Fetch user document directly from Firestore
+    let userDocRef = doc(window.firebaseDb, "users", targetUserId);
+    let snap = await getDoc(userDocRef);
 
-      // 1. Fetch user document directly from Firestore
-  let userDocRef = doc(window.firebaseDb, "users", targetUserId);
-  let snap = await getDoc(userDocRef);
-
-  if (!snap.exists()) {
-    return alert("User record not found in database.");
-  }
-
-  let userData = snap.data();
-  let pendingList = userData.deposits || userData.pendingDeposits || [];
-  let targetDep = pendingList[depIndex];
-
-  if (!targetDep) {
-    return alert("Deposit record not found.");
-  }
-  
-
-    if (userDocRef && userData) {
-      let dList = userData.deposits || [];
-                dList.push({
-            id: targetDep.id || ('DEP-' + Date.now()),
-            desc: 'Deposit Rejected',
-            amt: 'UGX ' + (Number(targetDep.rawAmt || targetDep.amt) || 0).toLocaleString(),
-            amount: Number(targetDep.rawAmt || targetDep.amt) || 0,
-            txId: targetDep.txId || '',
-            status: 'Rejected',
-            timestamp: new Date().toISOString()
-          });
-          
-
-      await updateDoc(userDocRef, { deposits: dList });
+    if (!snap.exists()) {
+      return alert("User record not found in database.");
     }
 
-    alert('🚫 Deposit request rejected.');
+    let userData = snap.data();
+    let pendingList = userData.pendingDeposits || [];
+    let targetDep = pendingList[depIndex];
+
+    // Fallback check
+    if (!targetDep && userData.deposits) {
+      targetDep = userData.deposits[depIndex];
+    }
+
+    if (!targetDep) {
+      return alert("Deposit record not found.");
+    }
+
+    let depAmount = Number(targetDep.rawAmount || targetDep.amount || targetDep.rawAmt || targetDep.amt) || 0;
+
+    // 2. Add rejected log to user's deposit history
+    let dList = userData.deposits || [];
+    dList.push({
+      id: targetDep.id || ('DEP-' + Date.now()),
+      title: 'Deposit Rejected',
+      desc: 'Deposit Rejected',
+      type: 'deposit',
+      amt: 'UGX ' + Number(depAmount).toLocaleString(),
+      amount: depAmount,
+      rawAmount: depAmount,
+      txId: targetDep.txId || targetDep.txid || '',
+      status: 'Rejected',
+      timestamp: new Date().toISOString(),
+      date: new Date().toLocaleDateString()
+    });
+
+    // 3. Remove rejected request from pending array
+    let pendingArr = userData.pendingDeposits || [];
+    if (depIndex >= 0 && depIndex < pendingArr.length) {
+      pendingArr.splice(depIndex, 1);
+    }
+
+    // 4. Update Firestore
+    await updateDoc(userDocRef, {
+      deposits: dList,
+      pendingDeposits: pendingArr
+    });
+
+    alert("🚫 Deposit request rejected.");
     loadAdminDashboardData();
   } catch (e) {
     console.error("Reject error:", e);
-    alert('Error rejecting deposit: ' + e.message);
+    alert("Error rejecting deposit: " + e.message);
   }
 }
 
