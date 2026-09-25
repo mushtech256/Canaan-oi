@@ -1356,56 +1356,53 @@ async function loadAdminDashboardData() {
         dormantUsersHtml += userInfoSnippet;
       }
 
-      // Track completed and pending withdrawals
-      let userWithdrawals = uData.withdrawals || [];
-      userWithdrawals.forEach((w, wIndex) => {
-        let wAmount = Number(w.rawAmount || w.amount) || 0;
-        if (w.status === 'Succeed' || w.status === 'Approved' || w.status === 'Completed') {
-          overallTotalWithdrawals += wAmount;
-        } else if (w.status === 'Pending' || w.status === 'Processing') {
-          pendingWithdrawalsHtml += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; margin-bottom:6px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
-              <div>
-                <b>${uData.phone || 'User'}</b><br>
-                <span style="color:#ef4444; font-weight:700;">UGX ${wAmount.toLocaleString()}</span><br>
-                <small style="color:var(--mut);">Method: ${w.method || 'Mobile Money'}</small>
-              </div>
-              <div style="display:flex; gap:4px;">
-                <button class="btn" style="padding:4px 8px; font-size:11px; background:#22c55e;" onclick="adminApproveWithdrawal('${userId}', ${wIndex})">Approve</button>
-                <button class="btn" style="padding:4px 8px; font-size:11px; background:#ef4444;" onclick="adminRejectWithdrawal('${userId}', ${wIndex})">Reject</button>
-              </div>
-            </div>
-          `;
-        }
-      });
-    });
-
-    // Track completed and pending deposits
-    const allDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
-    allDeposits.forEach((dep, depIndex) => {
-      let dAmount = Number(dep.amt || dep.rawAmt) || 0;
-
-      if (dep.status === 'Approved' || dep.status === 'Completed' || dep.status === 'Succeed') {
-        overallTotalDeposits += dAmount;
-      }
-
-      if (dep.status === 'Pending') {
-        pendingDepositsHtml += `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; margin-bottom:6px; background:var(--card); border:1px solid var(--border); border-radius:6px;">
+          // Track completed and pending withdrawals
+    let userWithdrawals = uData.withdrawals || [];
+    userWithdrawals.forEach((w, wIndex) => {
+      let wAmount = Number(w.rawAmount || w.amount) || 0;
+      if (w.status === 'Succeed' || w.status === 'Approved') {
+        overallTotalWithdrawals += wAmount;
+      } else if (w.status === 'Pending' || w.status === 'Processing') {
+        pendingWithdrawalsHtml += `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:var(--bg); padding:8px; border-radius:6px;">
             <div>
-              <b>${dep.phone || 'User'}</b><br>
-              <span style="color:var(--accent); font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
-              <small style="color:var(--mut);">TxID: ${dep.txId || 'N/A'}</small>
+              <b>${uData.phone || 'User'}</b><br>
+              <span style="color:#ef4444; font-weight:700;">UGX ${wAmount.toLocaleString()}</span><br>
+              <small style="color:var(--mut);">Method: ${w.method || 'N/A'}</small>
             </div>
             <div style="display:flex; gap:4px;">
-              <button class="btn" style="padding:4px 8px; font-size:11px; background:#22c55e;" onclick="adminApproveDeposit('${dep.userId || ''}', ${depIndex})">Approve</button>
-              <button class="btn" style="padding:4px 8px; font-size:11px; background:#ef4444;" onclick="adminRejectDeposit('${dep.userId || ''}', ${depIndex})">Reject</button>
+              <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="adminApproveWithdrawal('${doc.id}', ${wIndex})">Approve</button>
+              <button class="btn" style="padding:4px 8px; font-size:11px; background:#ef4444;" onclick="adminRejectWithdrawal('${doc.id}', ${wIndex})">Reject</button>
             </div>
           </div>
         `;
       }
     });
 
+    // Track completed and pending deposits directly from Firestore
+    let userDeposits = uData.deposits || [];
+    userDeposits.forEach((dep, depIndex) => {
+      let dAmount = Number(dep.amt || dep.rawAmt) || 0;
+
+      if (dep.status === 'Approved' || dep.status === 'Completed') {
+        overallTotalDeposits += dAmount;
+      } else if (dep.status === 'Pending') {
+        pendingDepositsHtml += `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:var(--bg); padding:8px; border-radius:6px;">
+            <div>
+              <b>${uData.phone || dep.phone || 'User'}</b><br>
+              <span style="color:var(--accent); font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
+              <small style="color:var(--mut);">TxID: ${dep.txId || 'N/A'}</small>
+            </div>
+            <div style="display:flex; gap:4px;">
+              <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="adminApproveDeposit('${doc.id}', ${depIndex})">Approve</button>
+            </div>
+          </div>
+        `;
+      }
+    });
+  });
+  
     // Update Dashboard DOM Stats
     const elTotalUsers = document.getElementById('adminStatTotalUsers');
     if (elTotalUsers) elTotalUsers.innerText = String(totalUsers);
@@ -2105,54 +2102,55 @@ window.submitDepositTransaction = async function() {
     return;
   }
 
-  // Retrieve current user and amount details
+  // Retrieve current logged in user
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const userPhone = user ? (user.phone || user.username) : (document.getElementById('depositPhoneInput')?.value || 'Guest');
-  
+  const userPhone = user ? (user.phone || user.username) : '';
+
   const newDeposit = {
     id: 'DEP-' + Date.now(),
     phone: userPhone,
-    amt: pendingDepositAmount || 0,
+    amt: Number(window.pendingDepositAmount || 0),
     txId: txId,
     timestamp: new Date().toISOString(),
     status: 'Pending'
   };
 
-  // 1. Save directly into localStorage deposits array for Admin Panel access
   try {
-    const existingDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
-    existingDeposits.unshift(newDeposit);
-    localStorage.setItem('deposits', JSON.stringify(existingDeposits));
-  } catch (err) {
-    console.error("Failed to save to local deposits list:", err);
-  }
+    const { doc, updateDoc, arrayUnion } = window.firebaseFns;
+    
+    // 1. Get user document reference
+    const userId = (window.currentUser && window.currentUser.uid) || (user && user.uid);
+    if (!userId) {
+      alert("Error: User session not found. Please log in again.");
+      return;
+    }
 
-  // 2. Try sending to backend API if present
-  try {
-    await fetch('/api/deposit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newDeposit)
+    const userRef = doc(window.firebaseDb, "users", userId);
+
+    // 2. Save directly to Firestore under user's deposits array
+    await updateDoc(userRef, {
+      deposits: arrayUnion(newDeposit)
     });
+
+    alert("Deposit submitted successfully! Processing time is 2-10 minutes.");
+
+    // Reset input & close modal
+    if (txIdInput) txIdInput.value = '';
+    if (typeof closeDepositModal === 'function') {
+      closeDepositModal();
+    } else {
+      const modal = document.getElementById('depositModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    if (typeof loadRecordData === 'function') {
+      loadRecordData();
+    }
+
   } catch (err) {
-    console.warn("Backend sync offline, stored locally for Admin panel.");
-  }
-
-  alert("Deposit submitted successfully! Processing time is 2-10 minutes.");
-
-  // Reset input & close modal
-  if (txIdInput) txIdInput.value = '';
-  if (typeof closeDepositModal === 'function') {
-    closeDepositModal();
-  } else {
-    const modal = document.getElementById('depositModal');
-    if (modal) modal.style.display = 'none';
-  }
-
-  // Refresh user or admin record view if function exists
-  if (typeof loadRecordData === 'function') {
-    loadRecordData();
+    console.error("Failed to save deposit to Firestore:", err);
+    alert("Error submitting deposit: " + err.message);
   }
 };
 
