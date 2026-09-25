@@ -1820,34 +1820,24 @@ async function adminApproveDeposit(targetUserId, depIndex) {
   try {
     const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFns;
     
-    // 1. Get deposit from localStorage
-    let allDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
-    let targetDep = allDeposits[depIndex];
-    if (!targetDep) return alert('Deposit record not found.');
+      // 1. Fetch user document directly from Firestore
+  let userDocRef = doc(window.firebaseDb, "users", targetUserId);
+  let snap = await getDoc(userDocRef);
 
-    let depAmount = Number(targetDep.rawAmt || targetDep.amt) || 0;
-    let userPhone = targetDep.phone || '';
+  if (!snap.exists()) {
+    return alert("User record not found in database.");
+  }
 
-    // 2. Query Firestore to find the user document by phone or ID
-    let userDocRef = null;
-    let userData = null;
+  let userData = snap.data();
+  let pendingList = userData.deposits || userData.pendingDeposits || [];
+  let targetDep = pendingList[depIndex];
 
-    if (targetUserId && targetUserId.length > 5) {
-      userDocRef = doc(window.firebaseDb, "users", targetUserId);
-      let snap = await getDoc(userDocRef);
-      if (snap.exists()) userData = snap.data();
-    }
+  if (!targetDep) {
+    return alert("Deposit record not found.");
+  }
 
-    if (!userData && userPhone) {
-      const q = query(collection(window.firebaseDb, "users"), where("phone", "==", userPhone));
-      const querySnap = await getDocs(q);
-      if (!querySnap.empty) {
-        let userSnap = querySnap.docs[0];
-        userDocRef = doc(window.firebaseDb, "users", userSnap.id);
-        userData = userSnap.data();
-      }
-    }
-
+  let depAmount = Number(targetDep.rawAmt || targetDep.amount || targetDep.amt) || 0;
+  
     // 3. Update Firestore balance and deposit status
     if (userDocRef && userData) {
       let dList = userData.deposits || [];
@@ -1870,9 +1860,6 @@ async function adminApproveDeposit(targetUserId, depIndex) {
    await checkAndQualifyReferral(targetUserId);
  }
 
-    // 4. Update local storage deposit state
-    allDeposits[depIndex].status = 'Approved';
-    localStorage.setItem('deposits', JSON.stringify(allDeposits));
     // Update global platform stats
     const statsRef = doc(window.firebaseDb, "platform_stats", "global");
     await updateDoc(statsRef, {
@@ -1891,31 +1878,22 @@ async function adminRejectDeposit(targetUserId, depIndex) {
   try {
     const { doc, getDoc, updateDoc, collection, query, where, getDocs } = window.firebaseFns;
 
-    let allDeposits = JSON.parse(localStorage.getItem('deposits') || '[]');
-    let targetDep = allDeposits[depIndex];
-    if (!targetDep) return alert('Deposit record not found.');
+      // 1. Fetch user document directly from Firestore
+  let userDocRef = doc(window.firebaseDb, "users", targetUserId);
+  let snap = await getDoc(userDocRef);
 
-    let userPhone = targetDep.phone || '';
+  if (!snap.exists()) {
+    return alert("User record not found in database.");
+  }
 
-    // Query user by ID or Phone
-    let userDocRef = null;
-    let userData = null;
+  let userData = snap.data();
+  let pendingList = userData.deposits || userData.pendingDeposits || [];
+  let targetDep = pendingList[depIndex];
 
-    if (targetUserId && targetUserId.length > 5) {
-      userDocRef = doc(window.firebaseDb, "users", targetUserId);
-      let snap = await getDoc(userDocRef);
-      if (snap.exists()) userData = snap.data();
-    }
-
-    if (!userData && userPhone) {
-      const q = query(collection(window.firebaseDb, "users"), where("phone", "==", userPhone));
-      const querySnap = await getDocs(q);
-      if (!querySnap.empty) {
-        let userSnap = querySnap.docs[0];
-        userDocRef = doc(window.firebaseDb, "users", userSnap.id);
-        userData = userSnap.data();
-      }
-    }
+  if (!targetDep) {
+    return alert("Deposit record not found.");
+  }
+  
 
     if (userDocRef && userData) {
       let dList = userData.deposits || [];
@@ -1932,9 +1910,6 @@ async function adminRejectDeposit(targetUserId, depIndex) {
 
       await updateDoc(userDocRef, { deposits: dList });
     }
-
-    allDeposits[depIndex].status = 'Rejected';
-    localStorage.setItem('deposits', JSON.stringify(allDeposits));
 
     alert('🚫 Deposit request rejected.');
     loadAdminDashboardData();
