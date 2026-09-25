@@ -68,6 +68,11 @@ window.firebaseFns = {
   orderBy,
   onSnapshot
 };
+// Expose functions globally for direct use
+window.doc = doc;
+window.getDoc = getDoc;
+window.updateDoc = updateDoc;
+window.increment = increment;
 
   // Signal that Firebase module is fully initialized
   window.dispatchEvent(new Event('firebase-ready'));
@@ -1335,8 +1340,8 @@ async function loadAdminDashboardData() {
     let overallTotalDeposits = 0;
     let overallTotalWithdrawals = 0;
 
-    let pendingDepositsHtml = '';
-    let pendingWithdrawalsHtml = '';
+    let pendingDepositsHtml = "";
+    let pendingWithdrawalsHtml = "";
 
     querySnapshot.forEach((docSnap) => {
       totalUsers++;
@@ -1354,51 +1359,52 @@ async function loadAdminDashboardData() {
       // 1. Safely render pending withdrawals
       const userWithdrawals = Array.isArray(uData.withdrawals) ? uData.withdrawals : [];
       userWithdrawals.forEach((w, wIndex) => {
-        let wAmount = Number(w.rawAmount || w.amount) || 0;
+        let wAmount = Number(w.rawAmount || w.amount || w.rawAmt || w.amt) || 0;
         if (w.status === 'Succeed' || w.status === 'Approved') {
           overallTotalWithdrawals += wAmount;
         } else if (w.status === 'Pending' || w.status === 'Processing') {
           pendingWithdrawalsHtml += `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:var(--bg); padding:8px; border-radius:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:12px; margin-bottom:8px; border-radius:8px;">
               <div>
                 <b>${uData.phone || 'User'}</b><br>
                 <span style="color:#ef4444; font-weight:700;">UGX ${wAmount.toLocaleString()}</span><br>
                 <small style="color:var(--mut);">Method: ${w.method || 'N/A'}</small>
               </div>
-              <div style="display:flex; gap:4px;">
-                <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="adminApproveWithdrawal('${userId}', ${wIndex})">Approve</button>
-                <button class="btn" style="padding:4px 8px; font-size:11px; background:#ef4444;" onclick="adminRejectWithdrawal('${userId}', ${wIndex})">Reject</button>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-sm btn-success" onclick="adminApproveWithdrawal('${userId}', ${wIndex})">Approve</button>
+                <button class="btn btn-sm btn-danger" onclick="adminRejectWithdrawal('${userId}', ${wIndex})">Reject</button>
               </div>
-            </div>
-          `;
+            </div>`;
         }
       });
 
       // 2. Safely render pending deposits
-      const userDeposits = Array.isArray(uData.deposits) ? uData.deposits : [];
-      userDeposits.forEach((dep, depIndex) => {
-     // CORRECT (Add dep.rawAmount at the beginning):
-const rawVal = dep.rawAmount ?? dep.amount ?? dep.rawAmt ?? dep.amt ?? 0;
-    let dAmount = typeof rawVal === 'string' ? (parseFloat(rawVal.replace(/[^0-9.]/g, '')) || 0) : Number(rawVal) || 0;
+      const pendingList = Array.isArray(uData.pendingDeposits) ? uData.pendingDeposits : [];
+      pendingList.forEach((dep, depIndex) => {
+        let dAmount = Number(dep.rawAmount || dep.amount || dep.rawAmt || dep.amt) || 0;
+        pendingDepositsHtml += `
+          <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:12px; margin-bottom:8px; border-radius:8px;">
+            <div>
+              <b>${uData.phone || 'User'}</b><br>
+              <span style="color:#10b981; font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
+              <small style="color:var(--mut);">TxID: ${dep.txId || dep.txid || 'N/A'}</small>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-sm btn-success" onclick="adminApproveDeposit('${userId}', ${depIndex})">Approve</button>
+              <button class="btn btn-sm btn-danger" onclick="adminRejectDeposit('${userId}', ${depIndex})">Reject</button>
+            </div>
+          </div>`;
+      });
 
-    if (dep.status === 'Approved' || dep.status === 'Completed' || dep.status === 'Succeed') {
-      overallTotalDeposits += dAmount;
-    } else if (dep.status === 'Pending' || dep.status === 'Processing') {
-      pendingDepositsHtml += `
-        <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid #334155;">
-          <div>
-            <b>${uData.phone || dep.phone || 'User'}</b><br>
-            <span style="color:#10b981; font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
-            <small style="color:#94a3b8;">TxID: ${dep.txId || dep.txid || 'N/A'}</small>
-          </div>
-          <div style="display:flex; gap:4px;">
-            <button class="btn" style="padding:4px 8px; font-size:12px; background:#10b981; color:#fff;" onclick="adminApproveDeposit('${userId}', ${depIndex})">Approve</button>
-            <button class="btn" style="padding:4px 8px; font-size:12px; background:#ef4444; color:#fff;" onclick="adminRejectDeposit('${userId}', ${depIndex})">Reject</button>
-          </div>
-        </div>`;
-    } 
+      // Count completed deposits for platform totals
+      const userDeposits = Array.isArray(uData.deposits) ? uData.deposits : [];
+      userDeposits.forEach((dep) => {
+        if (dep.status === 'Approved' || dep.status === 'Succeed') {
+          overallTotalDeposits += Number(dep.rawAmount || dep.amount || dep.rawAmt || dep.amt) || 0;
+        }
       });
     });
+    
     // Update Admin Stats Elements
     if (document.getElementById('adminStatTotalUsers')) document.getElementById('adminStatTotalUsers').innerText = totalUsers;
     if (document.getElementById('adminStatActiveUsers')) document.getElementById('adminStatActiveUsers').innerText = activeUsers;
@@ -1821,7 +1827,12 @@ async function submitWithdrawalRequest() {
 
 async function adminApproveDeposit(targetUserId, depIndex) {
   try {
-    // 1. Fetch user document directly from Firestore
+    // Safely retrieve Firebase methods from window or global scope
+    const doc = window.doc || window.firebaseFirestore?.doc;
+    const getDoc = window.getDoc || window.firebaseFirestore?.getDoc;
+    const updateDoc = window.updateDoc || window.firebaseFirestore?.updateDoc;
+    const increment = window.increment || window.firebaseFirestore?.increment;
+
     let userDocRef = doc(window.firebaseDb, "users", targetUserId);
     let snap = await getDoc(userDocRef);
 
@@ -1833,7 +1844,6 @@ async function adminApproveDeposit(targetUserId, depIndex) {
     let pendingList = userData.pendingDeposits || [];
     let targetDep = pendingList[depIndex];
 
-    // Fallback: Check deposits array if not found in pending
     if (!targetDep && userData.deposits) {
       targetDep = userData.deposits[depIndex];
     }
@@ -1844,7 +1854,6 @@ async function adminApproveDeposit(targetUserId, depIndex) {
 
     let depAmount = Number(targetDep.rawAmount || targetDep.amount || targetDep.rawAmt || targetDep.amt) || 0;
 
-    // 2. Add to user's completed deposits history
     let dList = userData.deposits || [];
     dList.push({
       id: targetDep.id || ('DEP-' + Date.now()),
@@ -1860,13 +1869,11 @@ async function adminApproveDeposit(targetUserId, depIndex) {
       date: new Date().toLocaleDateString()
     });
 
-    // 3. Remove approved request from pending array
     let pendingArr = userData.pendingDeposits || [];
     if (depIndex >= 0 && depIndex < pendingArr.length) {
       pendingArr.splice(depIndex, 1);
     }
 
-    // 4. Update Firestore user doc
     await updateDoc(userDocRef, {
       balance: (Number(userData.balance) || 0) + depAmount,
       hasDeposited: true,
@@ -1874,11 +1881,11 @@ async function adminApproveDeposit(targetUserId, depIndex) {
       pendingDeposits: pendingArr
     });
 
-    // 5. Update global platform stats
     const statsRef = doc(window.firebaseDb, "platform_stats", "general");
-    await updateDoc(statsRef, {
-      totalDeposits: increment(depAmount)
-    });
+await setDoc(statsRef, {
+  totalDeposits: increment(depAmount)
+}, { merge: true });
+
 
     alert("✅ Deposit approved successfully! UGX " + depAmount.toLocaleString());
     loadAdminDashboardData();
@@ -1890,7 +1897,11 @@ async function adminApproveDeposit(targetUserId, depIndex) {
 
 async function adminRejectDeposit(targetUserId, depIndex) {
   try {
-    // 1. Fetch user document directly from Firestore
+    // Safely retrieve Firebase methods from window or global scope
+    const doc = window.doc || window.firebaseFirestore?.doc;
+    const getDoc = window.getDoc || window.firebaseFirestore?.getDoc;
+    const updateDoc = window.updateDoc || window.firebaseFirestore?.updateDoc;
+
     let userDocRef = doc(window.firebaseDb, "users", targetUserId);
     let snap = await getDoc(userDocRef);
 
@@ -1902,7 +1913,6 @@ async function adminRejectDeposit(targetUserId, depIndex) {
     let pendingList = userData.pendingDeposits || [];
     let targetDep = pendingList[depIndex];
 
-    // Fallback check
     if (!targetDep && userData.deposits) {
       targetDep = userData.deposits[depIndex];
     }
@@ -1913,7 +1923,6 @@ async function adminRejectDeposit(targetUserId, depIndex) {
 
     let depAmount = Number(targetDep.rawAmount || targetDep.amount || targetDep.rawAmt || targetDep.amt) || 0;
 
-    // 2. Add rejected log to user's deposit history
     let dList = userData.deposits || [];
     dList.push({
       id: targetDep.id || ('DEP-' + Date.now()),
@@ -1929,13 +1938,11 @@ async function adminRejectDeposit(targetUserId, depIndex) {
       date: new Date().toLocaleDateString()
     });
 
-    // 3. Remove rejected request from pending array
     let pendingArr = userData.pendingDeposits || [];
     if (depIndex >= 0 && depIndex < pendingArr.length) {
       pendingArr.splice(depIndex, 1);
     }
 
-    // 4. Update Firestore
     await updateDoc(userDocRef, {
       deposits: dList,
       pendingDeposits: pendingArr
@@ -1948,6 +1955,7 @@ async function adminRejectDeposit(targetUserId, depIndex) {
     alert("Error rejecting deposit: " + e.message);
   }
 }
+
 
 let pendingDepositAmount = 0;
 document.addEventListener("DOMContentLoaded", function() {
