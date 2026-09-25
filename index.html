@@ -1262,7 +1262,7 @@ async function checkAndQualifyReferral(currentUserId) {
       return;
     }
 
-        let userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
+        let userCredential = await signInWithEmailAndPassword(window.firebaseAuth, userEmail, password);
     currentUserId = userCredential.user.uid;
     localStorage.setItem('canaan_userId', currentUserId); 
     await loadUserData();
