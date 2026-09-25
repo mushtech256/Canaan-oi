@@ -609,14 +609,14 @@ window.firebaseFns = {
 
       <div style="margin-bottom: 14px;">
         <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📨 Pending Deposits Log</div>
-        <div id="adminPendingDepositsQueue" style="max-height: 140px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
+        <div id="adminPendingDepositsList" style="max-height: 140px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
           <div style="font-size: 11px; color: var(--mut); text-align: center; padding: 10px;">Loading queue...</div>
         </div>
       </div>
 
       <div style="margin-bottom: 14px;">
         <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📋 Pending Withdrawal Approvals</div>
-        <div id="adminWithdrawalsQueue" style="max-height: 140px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
+        <div id="adminPendingWithdrawalsList" style="max-height: 140px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
           <div style="font-size: 11px; color: var(--mut); text-align: center; padding: 10px;">Loading queue...</div>
         </div>
       </div>
@@ -1220,6 +1220,7 @@ async function checkAndQualifyReferral(currentUserId) {
         };
 
         await setDoc(doc(window.firebaseDb, "users", currentUserId), userData);
+            localStorage.setItem('canaan_userId', currentUser.uid);
         alert('🎉 Account registered successfully!');
         await loadUserData();
       } catch (error) {
@@ -1261,10 +1262,11 @@ async function checkAndQualifyReferral(currentUserId) {
       return;
     }
 
-    let userCredential = await signInWithEmailAndPassword(window.firebaseAuth, userEmail, password);
+        let userCredential = await signInWithEmailAndPassword(auth, userEmail, password);
     currentUserId = userCredential.user.uid;
+    localStorage.setItem('canaan_userId', currentUserId); 
     await loadUserData();
-
+    
   } catch (error) {
     console.error("Login error details:", error);
     alert("Login Error: " + error.message);
@@ -1273,6 +1275,10 @@ async function checkAndQualifyReferral(currentUserId) {
 
     async function loadUserData() {
   const { doc, getDoc } = window.firebaseFns;
+    if (!currentUserId) {
+    currentUserId = localStorage.getItem('canaan_userId');
+  }
+  if (!currentUserId) return;
   let docSnap = await getDoc(doc(window.firebaseDb, "users", currentUserId));
   if (docSnap.exists()) {
     let data = docSnap.data();
@@ -1321,121 +1327,97 @@ async function checkAndQualifyReferral(currentUserId) {
 async function loadAdminDashboardData() {
   try {
     const { collection, getDocs } = window.firebaseFns;
-    let querySnapshot = await getDocs(collection(window.firebaseDb, "users"));
-    
-    let totalUsers = 0, activeUsers = 0, dormantUsers = 0;
-    let pendingDepositsHtml = '', pendingWithdrawalsHtml = '', activeUsersHtml = '', dormantUsersHtml = '';
-    let overallTotalDeposits = 0, overallTotalWithdrawals = 0;
+    const querySnapshot = await getDocs(collection(window.firebaseDb, "users"));
+
+    let totalUsers = 0;
+    let activeUsers = 0;
+    let dormantUsers = 0;
+    let overallTotalDeposits = 0;
+    let overallTotalWithdrawals = 0;
+
+    let pendingDepositsHtml = '';
+    let pendingWithdrawalsHtml = '';
 
     querySnapshot.forEach((docSnap) => {
-      let uData = docSnap.data();
-      let userId = docSnap.id;
       totalUsers++;
-      let isUserActive = uData.hasDeposited || (uData.activeMachines && uData.activeMachines.length > 0);
-      
-      let userInfoSnippet = `
-        <div style="background:var(--card); padding:8px; border-radius:6px; margin-bottom:6px; font-size:11px; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <b>Phone:</b> ${uData.phone || 'N/A'}<br>
-            <b>Email:</b> ${uData.email || 'N/A'}<br>
-            <b>Balance:</b> UGX ${(Number(uData.balance)||0).toLocaleString()}<br>
-            <b>Status:</b> ${uData.isBanned ? '<span style="color:#ef4444; font-weight:bold;">BANNED</span>' : '<span style="color:#22c55e;">ACTIVE</span>'}
-          </div>
-          <div>
-            <button class="btn" style="padding:2px 6px; font-size:10px; background:#eab308; margin-bottom:2px;" onclick="adminDirectResetPassword('${userId}', '${uData.phone}')">Reset Pass</button><br>
-            <button class="btn" style="padding:2px 6px; font-size:10px; background:${uData.isBanned ? '#22c55e' : '#ef4444'};" onclick="adminToggleBanById('${userId}', ${!!uData.isBanned})">${uData.isBanned ? 'Unban' : 'Ban'}</button>
-          </div>
-        </div>
-      `;
+      const uData = docSnap.data() || {};
+      const userId = docSnap.id;
 
-      if (isUserActive) { 
-        activeUsers++; 
-        activeUsersHtml += userInfoSnippet; 
-      } else { 
-        dormantUsers++; 
-        dormantUsersHtml += userInfoSnippet;
+      // Active vs Dormant calculation
+      const hasActivity = (uData.activeMachines && uData.activeMachines.length > 0) || (uData.balance > 0);
+      if (hasActivity) {
+        activeUsers++;
+      } else {
+        dormantUsers++;
       }
 
-          // Track completed and pending withdrawals
-    let userWithdrawals = uData.withdrawals || [];
-    userWithdrawals.forEach((w, wIndex) => {
-      let wAmount = Number(w.rawAmount || w.amount) || 0;
-      if (w.status === 'Succeed' || w.status === 'Approved') {
-        overallTotalWithdrawals += wAmount;
-      } else if (w.status === 'Pending' || w.status === 'Processing') {
-        pendingWithdrawalsHtml += `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:var(--bg); padding:8px; border-radius:6px;">
-            <div>
-              <b>${uData.phone || 'User'}</b><br>
-              <span style="color:#ef4444; font-weight:700;">UGX ${wAmount.toLocaleString()}</span><br>
-              <small style="color:var(--mut);">Method: ${w.method || 'N/A'}</small>
+      // 1. Safely render pending withdrawals
+      const userWithdrawals = Array.isArray(uData.withdrawals) ? uData.withdrawals : [];
+      userWithdrawals.forEach((w, wIndex) => {
+        let wAmount = Number(w.rawAmount || w.amount) || 0;
+        if (w.status === 'Succeed' || w.status === 'Approved') {
+          overallTotalWithdrawals += wAmount;
+        } else if (w.status === 'Pending' || w.status === 'Processing') {
+          pendingWithdrawalsHtml += `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:var(--bg); padding:8px; border-radius:6px;">
+              <div>
+                <b>${uData.phone || 'User'}</b><br>
+                <span style="color:#ef4444; font-weight:700;">UGX ${wAmount.toLocaleString()}</span><br>
+                <small style="color:var(--mut);">Method: ${w.method || 'N/A'}</small>
+              </div>
+              <div style="display:flex; gap:4px;">
+                <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="adminApproveWithdrawal('${userId}', ${wIndex})">Approve</button>
+                <button class="btn" style="padding:4px 8px; font-size:11px; background:#ef4444;" onclick="adminRejectWithdrawal('${userId}', ${wIndex})">Reject</button>
+              </div>
             </div>
-            <div style="display:flex; gap:4px;">
-              <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="adminApproveWithdrawal('${doc.id}', ${wIndex})">Approve</button>
-              <button class="btn" style="padding:4px 8px; font-size:11px; background:#ef4444;" onclick="adminRejectWithdrawal('${doc.id}', ${wIndex})">Reject</button>
+          `;
+        }
+      });
+
+      // 2. Safely render pending deposits
+      const userDeposits = Array.isArray(uData.deposits) ? uData.deposits : [];
+      userDeposits.forEach((dep, depIndex) => {
+        let dAmount = Number(dep.amt || dep.rawAmt) || 0;
+        if (dep.status === 'Approved' || dep.status === 'Completed') {
+          overallTotalDeposits += dAmount;
+        } else if (dep.status === 'Pending') {
+          pendingDepositsHtml += `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:var(--bg); padding:8px; border-radius:6px;">
+              <div>
+                <b>${uData.phone || dep.phone || 'User'}</b><br>
+                <span style="color:var(--accent); font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
+                <small style="color:var(--mut);">TxID: ${dep.txId || 'N/A'}</small>
+              </div>
+              <div style="display:flex; gap:4px;">
+                <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="adminApproveDeposit('${userId}', ${depIndex})">Approve</button>
+              </div>
             </div>
-          </div>
-        `;
-      }
+          `;
+        }
+      });
+    });
+    // Update Admin Stats Elements
+    if (document.getElementById('adminStatTotalUsers')) document.getElementById('adminStatTotalUsers').innerText = totalUsers;
+    if (document.getElementById('adminStatActiveUsers')) document.getElementById('adminStatActiveUsers').innerText = activeUsers;
+    if (document.getElementById('adminStatDormantUsers')) document.getElementById('adminStatDormantUsers').innerText = dormantUsers;
+
+            // Render Lists
+    const pendingDepHtml = pendingDepositsHtml || '<p style="color:var(--mut); font-size:12px;">No pending deposits.</p>';
+    const pendingWdHtml = pendingWithdrawalsHtml || '<p style="color:var(--mut); font-size:12px;">No pending withdrawals.</p>';
+
+    // Target any possible ID used in the HTML layout
+    ['adminPendingDepositsList', 'pendingDepositsList', 'adminPendingDepEl'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = pendingDepHtml;
     });
 
-    // Track completed and pending deposits directly from Firestore
-    let userDeposits = uData.deposits || [];
-    userDeposits.forEach((dep, depIndex) => {
-      let dAmount = Number(dep.amt || dep.rawAmt) || 0;
-
-      if (dep.status === 'Approved' || dep.status === 'Completed') {
-        overallTotalDeposits += dAmount;
-      } else if (dep.status === 'Pending') {
-        pendingDepositsHtml += `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:var(--bg); padding:8px; border-radius:6px;">
-            <div>
-              <b>${uData.phone || dep.phone || 'User'}</b><br>
-              <span style="color:var(--accent); font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
-              <small style="color:var(--mut);">TxID: ${dep.txId || 'N/A'}</small>
-            </div>
-            <div style="display:flex; gap:4px;">
-              <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="adminApproveDeposit('${doc.id}', ${depIndex})">Approve</button>
-            </div>
-          </div>
-        `;
-      }
+    ['adminPendingWithdrawalsList', 'pendingWithdrawalsList', 'adminPendingWdEl'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = pendingWdHtml;
     });
-  });
-  
-    // Update Dashboard DOM Stats
-    const elTotalUsers = document.getElementById('adminStatTotalUsers');
-    if (elTotalUsers) elTotalUsers.innerText = String(totalUsers);
-
-    const elActiveUsers = document.getElementById('adminStatActiveUsers');
-    if (elActiveUsers) elActiveUsers.innerText = String(activeUsers);
-
-    const elDormantUsers = document.getElementById('adminStatDormantUsers');
-    if (elDormantUsers) elDormantUsers.innerText = String(dormantUsers);
-
-    const elTotalDeposits = document.getElementById('adminStatTotalDeposits');
-    if (elTotalDeposits) elTotalDeposits.innerText = 'UGX ' + overallTotalDeposits.toLocaleString();
-
-    const elTotalWithdrawals = document.getElementById('adminStatTotalWithdrawals');
-    if (elTotalWithdrawals) elTotalWithdrawals.innerText = 'UGX ' + overallTotalWithdrawals.toLocaleString();
-
-    const activeEl = document.getElementById('adminActiveUsersList');
-    if (activeEl) activeEl.innerHTML = activeUsersHtml;
-
-    const dormantEl = document.getElementById('adminDormantUsersList');
-    if (dormantEl) dormantEl.innerHTML = dormantUsersHtml;
-
-    const withdrawalsEl = document.getElementById('adminWithdrawalsQueue');
-    if (withdrawalsEl) withdrawalsEl.innerHTML = pendingWithdrawalsHtml || '<div style="font-size:12px; color:var(--mut); padding:6px;">No pending withdrawals</div>';
-
-    const pendingDepEl = document.getElementById('adminPendingDepositsQueue');
-    if (pendingDepEl) pendingDepEl.innerHTML = pendingDepositsHtml || '<div style="font-size:12px; color:var(--mut); padding:6px;">No pending deposits</div>';
-
-    // Render machines inside admin panel
-    adminRenderMachineControls();
-
-  } catch (e) {
-    console.error("Error loading admin dashboard:", e);
+    
+  } catch (err) {
+    console.error("Error loading admin stats:", err);
   }
 }
 
@@ -2120,11 +2102,13 @@ window.submitDepositTransaction = async function() {
     const { doc, updateDoc, arrayUnion } = window.firebaseFns;
     
     // 1. Get user document reference
-    const userId = (window.currentUser && window.currentUser.uid) || (user && user.uid);
-    if (!userId) {
-      alert("Error: User session not found. Please log in again.");
-      return;
-    }
+const loggedInUser = user ? user.uid || user.id : null;
+const userId = currentUserId || (window.currentUser && window.currentUser.uid) || localStorage.getItem('canaan_userId');
+
+if (!userId) {
+  alert("Error: User session not found. Please log in again.");
+  return;
+}
 
     const userRef = doc(window.firebaseDb, "users", userId);
 
