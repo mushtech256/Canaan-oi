@@ -1377,23 +1377,25 @@ async function loadAdminDashboardData() {
       // 2. Safely render pending deposits
       const userDeposits = Array.isArray(uData.deposits) ? uData.deposits : [];
       userDeposits.forEach((dep, depIndex) => {
-        let dAmount = Number(dep.amt || dep.rawAmt) || 0;
-        if (dep.status === 'Approved' || dep.status === 'Completed') {
-          overallTotalDeposits += dAmount;
-        } else if (dep.status === 'Pending') {
-          pendingDepositsHtml += `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:var(--bg); padding:8px; border-radius:6px;">
-              <div>
-                <b>${uData.phone || dep.phone || 'User'}</b><br>
-                <span style="color:var(--accent); font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
-                <small style="color:var(--mut);">TxID: ${dep.txId || 'N/A'}</small>
-              </div>
-              <div style="display:flex; gap:4px;">
-                <button class="btn" style="padding:4px 8px; font-size:11px;" onclick="adminApproveDeposit('${userId}', ${depIndex})">Approve</button>
-              </div>
-            </div>
-          `;
-        }
+     const rawVal = dep.rawAmt ?? dep.amt ?? dep.amount ?? 0;
+    let dAmount = typeof rawVal === 'string' ? (parseFloat(rawVal.replace(/[^0-9.]/g, '')) || 0) : Number(rawVal) || 0;
+
+    if (dep.status === 'Approved' || dep.status === 'Completed' || dep.status === 'Succeed') {
+      overallTotalDeposits += dAmount;
+    } else if (dep.status === 'Pending' || dep.status === 'Processing') {
+      pendingDepositsHtml += `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:10px; margin-bottom:8px; border-radius:6px; border:1px solid #334155;">
+          <div>
+            <b>${uData.phone || dep.phone || 'User'}</b><br>
+            <span style="color:#10b981; font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
+            <small style="color:#94a3b8;">TxID: ${dep.txId || dep.txid || 'N/A'}</small>
+          </div>
+          <div style="display:flex; gap:4px;">
+            <button class="btn" style="padding:4px 8px; font-size:12px; background:#10b981; color:#fff;" onclick="adminApproveDeposit('${userId}', ${depIndex})">Approve</button>
+            <button class="btn" style="padding:4px 8px; font-size:12px; background:#ef4444; color:#fff;" onclick="adminRejectDeposit('${userId}', ${depIndex})">Reject</button>
+          </div>
+        </div>`;
+    } 
       });
     });
     // Update Admin Stats Elements
