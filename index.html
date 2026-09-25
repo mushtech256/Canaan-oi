@@ -1401,7 +1401,15 @@ async function loadAdminDashboardData() {
 
       // Render all discovered pending deposits
 allPending.forEach((dep) => {
-    let dAmount = Number(dep.amount || dep.rawAmount || dep.rawAmt || dep.amt || dep.value || dep.depositAmount || dep.topup || dep.sum || dep.price) || 0;
+   let dAmount = Number(dep.amount || dep.rawAmount || dep.rawAmt || dep.amt || dep.value || dep.depositAmount || dep.topup || dep.sum || dep.price) || 0;
+if (dAmount === 0) {
+    let textToCheck = (dep.txid || dep.description || dep.message || dep.text || "").toString();
+    let match = textToCheck.match(/UGX\s*([0-9,]+)/i) || textToCheck.match(/([0-9,]{4,})/);
+    if (match && match[1]) {
+        dAmount = Number(match[1].replace(/,/g, '')) || 0;
+    }
+}
+ 
     let depIndex = dep.originalIndex;
     
         pendingDepositsHtml += `
@@ -1874,7 +1882,15 @@ async function adminApproveDeposit(targetUserId, depIndex) {
       return alert("Deposit record not found.");
     }
 
-    let depAmount = Number(targetDep.rawAmount || targetDep.amount || targetDep.rawAmt || targetDep.amt) || 0;
+    let depAmount = Number(targetDep.amount || targetDep.rawAmount || targetDep.rawAmt || targetDep.amt || targetDep.value || targetDep.depositAmount || targetDep.topup || targetDep.sum || targetDep.price) || 0;
+if (depAmount === 0) {
+    let textToCheck = (targetDep.txid || targetDep.description || targetDep.message || targetDep.text || "").toString();
+    let match = textToCheck.match(/UGX\s*([0-9,]+)/i) || textToCheck.match(/([0-9,]{4,})/);
+    if (match && match[1]) {
+        depAmount = Number(match[1].replace(/,/g, '')) || 0;
+    }
+}
+
 
     let dList = userData.deposits || [];
     dList.push({
