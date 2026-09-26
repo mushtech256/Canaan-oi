@@ -1381,13 +1381,13 @@ async function loadAdminDashboardData() {
         }
       });
 
-            // 2. Safely render pending deposits (Checking both pendingDeposits and deposits arrays)
+                 // 2. Safely render pending deposits (Checking both pendingDeposits and deposits arrays)
       let allPending = [];
 
       // Check uData.pendingDeposits array
       if (Array.isArray(uData.pendingDeposits)) {
         uData.pendingDeposits.forEach((dep, idx) => {
-          allPending.push({ ...dep, originalIndex: idx, source: 'pendingDeposits' });
+          allPending.push({ ...dep, originalIndex: idx, sourceArray: 'pendingDeposits' });
         });
       }
 
@@ -1395,38 +1395,38 @@ async function loadAdminDashboardData() {
       if (Array.isArray(uData.deposits)) {
         uData.deposits.forEach((dep, idx) => {
           if (dep.status === 'Pending' || dep.status === 'pending' || dep.status === 'Processing') {
-            allPending.push({ ...dep, originalIndex: idx, source: 'deposits' });
+            allPending.push({ ...dep, originalIndex: idx, sourceArray: 'deposits' });
           }
         });
       }
 
       // Render all discovered pending deposits
-allPending.forEach((dep) => {
-    let dAmount = Number(dep.amount || dep.rawAmount || dep.rawAmt || dep.amt || dep.value || dep.depositAmount || dep.topup || dep.sum || dep.price) || 0;
-    if (dAmount === 0) {
-        let textToCheck = (dep.txid || dep.description || dep.message || dep.text || "").toString();
-        let match = textToCheck.match(/UGX\s*([0-9,]+)/i) || textToCheck.match(/([0-9,]{4,})/);
-        if (match && match[1]) {
-            dAmount = Number(match[1].replace(/,/g, '')) || 0;
+      allPending.forEach((dep) => {
+        let dAmount = Number(dep.amount || dep.rawAmount || dep.rawAmt || dep.amt || dep.value || dep.depositAmount || dep.topup || dep.sum || dep.price) || 0;
+        if (dAmount === 0) {
+            let textToCheck = (dep.txid || dep.description || dep.message || dep.text || "").toString();
+            let match = textToCheck.match(/UGX\s*([0-9,]+)/i) || textToCheck.match(/([0-9,]{4,})/);
+            if (match && match[1]) {
+                dAmount = Number(match[1].replace(/,/g, '')) || 0;
+            }
         }
-    }
-    let depIndex = dep.originalIndex;
+        let depIndex = dep.originalIndex;
+        let sourceArr = dep.sourceArray;
 
-    pendingDepositsHtml += `
-    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid rgba(255,255,255,0.05);">
-      <div>
-        <b>${uData.phone || 'User'}</b><br>
-        <span style="color:#10b981; font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
-        <small style="color:var(--mut);">TxID: ${dep.txid || dep.id || 'N/A'}</small>
-      </div>
-      <div style="display:flex; gap:6px;">
-        <button class="btn btn-sm btn-success" onclick="adminApproveDeposit('${userId}', ${depIndex})">Approve</button>
-<button class="btn btn-sm btn-danger" onclick="adminRejectDeposit('${userId}', ${depIndex})">Reject</button>
-      </div>
-    </div>`;
-});
-
-      
+        pendingDepositsHtml += `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid rgba(255,255,255,0.05);">
+          <div>
+            <b>${uData.phone || 'User'}</b><br>
+            <span style="color:#10b981; font-weight:700;">UGX ${dAmount.toLocaleString()}</span><br>
+            <small style="color:var(--mut);">TxID: ${dep.txid || dep.id || 'N/A'}</small>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-sm btn-success" onclick="adminApproveDeposit('${userId}', ${depIndex}, '${sourceArr}')">Approve</button>
+            <button class="btn btn-sm btn-danger" onclick="adminRejectDeposit('${userId}', ${depIndex}, '${sourceArr}')">Reject</button>
+          </div>
+        </div>`;
+      });
+       
       // Count completed deposits for platform totals
       const userDeposits = Array.isArray(uData.deposits) ? uData.deposits : [];
       userDeposits.forEach((dep) => {
@@ -1857,7 +1857,7 @@ async function submitWithdrawalRequest() {
 }
 
 // Approve Deposit
-async function adminApproveDeposit(targetUserId, depIndex) {
+async function adminApproveDeposit(targetUserId, depIndex, sourceArr = 'pendingDeposits') {
   try {
     const doc = window.doc || window.firebaseFirestore?.doc;
     const getDoc = window.getDoc || window.firebaseFirestore?.getDoc;
@@ -1871,18 +1871,22 @@ async function adminApproveDeposit(targetUserId, depIndex) {
     }
 
     let userData = snap.data();
-    let pendingArr = userData.pendingDeposits || [];
-    let targetDep = pendingArr[depIndex];
+    let pendingArr = Array.isArray(userData.pendingDeposits) ? [...userData.pendingDeposits] : [];
+    let depositsArr = Array.isArray(userData.deposits) ? [...userData.deposits] : [];
+    
+    let targetDep = null;
 
-    if (!targetDep && userData.deposits) {
-      targetDep = userData.deposits[depIndex];
+    if (sourceArr === 'deposits') {
+      targetDep = depositsArr[depIndex];
+    } else {
+      targetDep = pendingArr[depIndex];
     }
 
     if (!targetDep) {
       return alert("Deposit record not found.");
     }
 
-    // Attempt to extract amount, fallback to prompt if 0
+    // Extract amount safely
     let depAmount = Number(
       targetDep.amount || 
       targetDep.rawAmount || 
@@ -1904,35 +1908,42 @@ async function adminApproveDeposit(targetUserId, depIndex) {
       }
     }
 
-    // If still 0, prompt admin to enter the deposit amount manually so it never gets stuck!
     if (depAmount <= 0) {
       let manualInput = prompt("Could not auto-detect amount from record. Please enter the deposit amount in UGX:", "30000");
-      if (!manualInput) return; // cancelled
+      if (!manualInput) return;
       depAmount = Number(manualInput) || 0;
     }
 
-    // Remove from pending list
-    if (depIndex >= 0 && depIndex < pendingArr.length) {
-      pendingArr.splice(depIndex, 1);
+    // Remove or update status based on source array
+    if (sourceArr === 'deposits') {
+      if (depositsArr[depIndex]) {
+        depositsArr[depIndex].status = 'Approved';
+        depositsArr[depIndex].amount = depAmount;
+        depositsArr[depIndex].rawAmount = depAmount;
+      }
+    } else {
+      if (depIndex >= 0 && depIndex < pendingArr.length) {
+        pendingArr.splice(depIndex, 1);
+      }
+      depositsArr.push({
+        id: targetDep.id || ('DEP-' + Date.now()),
+        title: 'Deposit Approved',
+        type: 'deposit',
+        status: 'Approved',
+        amount: depAmount,
+        rawAmount: depAmount,
+        amt: '+UGX ' + depAmount.toLocaleString(),
+        date: new Date().toLocaleDateString(),
+        timestamp: new Date().toISOString()
+      });
     }
 
     let currentBalance = Number(userData.balance || userData.walletBalance || 0);
     let newBalance = currentBalance + depAmount;
 
-    let dList = userData.deposits || [];
-    dList.push({
-      id: targetDep.id || ('DEP-' + Date.now()),
-      title: 'Deposit Approved',
-      type: 'deposit',
-      amount: depAmount,
-      rawAmount: depAmount,
-      status: 'Approved',
-      timestamp: new Date().toISOString()
-    });
-
     await updateDoc(userDocRef, {
       balance: newBalance,
-      deposits: dList,
+      deposits: depositsArr,
       pendingDeposits: pendingArr
     });
 
@@ -1946,7 +1957,7 @@ async function adminApproveDeposit(targetUserId, depIndex) {
 }
 
 // Reject Deposit
-async function adminRejectDeposit(targetUserId, depIndex) {
+async function adminRejectDeposit(targetUserId, depIndex, sourceArr = 'pendingDeposits') {
   try {
     const doc = window.doc || window.firebaseFirestore?.doc;
     const getDoc = window.getDoc || window.firebaseFirestore?.getDoc;
@@ -1960,63 +1971,67 @@ async function adminRejectDeposit(targetUserId, depIndex) {
     }
 
     let userData = snap.data();
-    let pendingArr = userData.pendingDeposits || [];
-    let targetDep = pendingArr[depIndex];
+    let pendingArr = Array.isArray(userData.pendingDeposits) ? [...userData.pendingDeposits] : [];
+    let depositsArr = Array.isArray(userData.deposits) ? [...userData.deposits] : [];
 
-    if (!targetDep && userData.deposits) {
-      targetDep = userData.deposits[depIndex];
+    let targetDep = null;
+    if (sourceArr === 'deposits') {
+      targetDep = depositsArr[depIndex];
+    } else {
+      targetDep = pendingArr[depIndex];
     }
 
     if (!targetDep) {
       return alert("Deposit record not found.");
     }
 
-    // Extract amount in case we need to log it as rejected/cancelled
-    let depAmount = Number(targetDep.amount || targetDep.rawAmount || targetDep.rawAmt || targetDep.amt || targetDep.value || targetDep.depositAmount || targetDep.topup || targetDep.sum || targetDep.price) || 0;
-    if (depAmount === 0) {
-      let textToCheck = (targetDep.txid || targetDep.description || targetDep.message || targetDep.text || "").toString();
-      let match = textToCheck.match(/UGX\s*([0-9,]+)/i) || textToCheck.match(/([0-9,]{4,})/);
-      if (match && match[1]) {
-        depAmount = Number(match[1].replace(/,/g, '')) || 0;
+    let depAmount = Number(
+      targetDep.amount || 
+      targetDep.rawAmount || 
+      targetDep.rawAmt || 
+      targetDep.amt || 
+      targetDep.value || 
+      targetDep.depositAmount || 
+      targetDep.topup || 
+      targetDep.sum || 
+      targetDep.price || 
+      0
+    );
+
+    if (sourceArr === 'deposits') {
+      if (depositsArr[depIndex]) {
+        depositsArr[depIndex].status = 'Rejected';
       }
+    } else {
+      if (depIndex >= 0 && depIndex < pendingArr.length) {
+        pendingArr.splice(depIndex, 1);
+      }
+      depositsArr.push({
+        id: targetDep.id || ('DEP-' + Date.now()),
+        title: 'Deposit Rejected',
+        type: 'deposit',
+        status: 'Rejected',
+        amount: depAmount,
+        rawAmount: depAmount,
+        amt: 'UGX ' + depAmount.toLocaleString(),
+        date: new Date().toLocaleDateString(),
+        timestamp: new Date().toISOString()
+      });
     }
-
-    // Remove from pending list
-    if (depIndex >= 0 && depIndex < pendingArr.length) {
-      pendingArr.splice(depIndex, 1);
-    }
-
-    // Optionally record the rejection in user's history
-    let dList = userData.deposits || [];
-    dList.push({
-      id: targetDep.id || ('DEP-' + Date.now()),
-      title: 'Deposit Rejected',
-      desc: 'Deposit Rejected',
-      type: 'deposit',
-      amt: 'UGX ' + Number(depAmount).toLocaleString(),
-      amount: depAmount,
-      rawAmount: depAmount,
-      txid: targetDep.txid || targetDep.id || '',
-      status: 'Rejected',
-      timestamp: new Date().toISOString(),
-      date: new Date().toLocaleDateString()
-    });
 
     await updateDoc(userDocRef, {
-      deposits: dList,
+      deposits: depositsArr,
       pendingDeposits: pendingArr
     });
 
-    alert('🚫 Deposit rejected successfully.');
+    alert('❌ Deposit rejected successfully.');
     loadAdminDashboardData();
 
   } catch (e) {
-    console.error("Reject error:", e);
+    console.error("Rejection error:", e);
     alert("Error rejecting deposit: " + e.message);
   }
 }
-
-
 
 let pendingDepositAmount = 0;
 document.addEventListener("DOMContentLoaded", function() {
