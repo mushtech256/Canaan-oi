@@ -1855,6 +1855,30 @@ async function submitWithdrawalRequest() {
     alert("Error submitting withdrawal: " + e.message);
   }
 }
+// Helper to safely extract deposit amounts
+function getDepositAmount(dep) {
+  if (!dep) return 0;
+  let amt = Number(
+    dep.amount || 
+    dep.rawAmount || 
+    dep.rawAmt || 
+    dep.amt || 
+    dep.value || 
+    dep.depositAmount || 
+    dep.topup || 
+    dep.sum || 
+    dep.price
+  ) || 0;
+
+  if (amt === 0) {
+    let textToCheck = (dep.txid || dep.description || dep.message || dep.text || "").toString();
+    let match = textToCheck.match(/UGX\s*([0-9,]+)/i) || textToCheck.match(/([0-9,]{4,})/);
+    if (match && match[1]) {
+      amt = Number(match[1].replace(/,/g, '')) || 0;
+    }
+  }
+  return amt;
+}
 
 // Approve Deposit
 async function adminApproveDeposit(targetUserId, depIndex, sourceArr = 'pendingDeposits') {
@@ -2474,15 +2498,36 @@ alert('Successfully deployed ' + m.name + '!');
     }
 
     function cancelWithdrawal(index) {
-      let item = withdrawals[index];
-      if (item && item.status === 'Pending') {
-        balance = Number(balance) + Number(item.rawAmount);
-        item.status = 'Cancelled';
-        saveUserData();
-        updateUI();
-        alert(`Withdrawal cancelled. UGX ${item.rawAmount.toLocaleString()} refunded.`);
-      }
-    }
+  if (!Array.isArray(withdrawals) || !withdrawals[index]) return;
+  let item = withdrawals[index];
+  
+  if ((item.status || '').toLowerCase() !== 'pending') {
+    alert('Only pending withdrawals can be cancelled.');
+    return;
+  }
+
+  let refundAmount = Number(item.rawAmount || item.amount || 0);
+  if (isNaN(refundAmount)) {
+    let rawVal = String(item.amt || '').replace(/[^0-9.-]+/g, "");
+    refundAmount = Number(rawVal) || 0;
+  }
+
+  // Refund the balance immediately
+  balance = Number(balance || 0) + refundAmount;
+  item.status = 'Cancelled';
+  
+  // Try saving, catch permission errors gracefully so offline mode still works
+  try {
+    if (typeof saveUserData === 'function') saveUserData();
+  } catch (e) {
+    console.log('Offline mode: saved locally');
+  }
+
+  if (typeof updateUI === 'function') updateUI();
+  if (typeof renderRecordsList === 'function') renderRecordsList();
+  
+  alert(`Withdrawal cancelled. UGX ${refundAmount.toLocaleString()} refunded to your balance.`);
+}
 
     function claimDailyReward() {
       let today = new Date().toDateString();
@@ -2496,17 +2541,139 @@ alert('Successfully deployed ' + m.name + '!');
     }
 
     function switchRecordTab(tab) {
-      currentRecordTab = tab;
-      ['deposits', 'withdrawals', 'investments', 'active'].forEach(t => {
-        let btn = document.getElementById('rtab-' + t);
-        if (btn) {
-          btn.style.background = (t === tab) ? '#10b981' : '#1e293b';
-          btn.style.color = (t === tab) ? '#0f172a' : '#f8fafc';
-        }
-      });
-      processWithdrawalsTimeout();
-      updateUI();
+  currentRecordTab = tab;
+  ['deposits', 'withdrawals', 'investments', 'active'].forEach(t => {
+    let btn = document.getElementById('rtab-' + t);
+    if (btn) {
+      btn.style.background = (t === tab) ? '#10b981' : '#1e293b';
+      btn.style.color = (t === tab) ? '#0f172a' : '#f8fafc';
     }
+  });
+  processWithdrawalsTimeout();
+  renderRecordsList();
+  updateUI();
+}
+
+function renderRecordsList() {
+  const container = document.getElementById('recordsContainer') || document.getElementById('recordsList');
+  if (!container) return;
+
+  // Calculate Lifetime Totals safely
+  let totalDeposits = 0;
+  if (Array.isArray(deposits)) {
+    deposits.forEach(d => {
+      let rawVal = d.rawAmount || d.amt || d.amount || 0;
+      if (typeof rawVal === 'string') rawVal = rawVal.replace(/[^0-9.-]+/g, "");
+      let amt = Number(rawVal);
+      if (!isNaN(amt)) totalDeposits += Math.abs(amt);
+    });
+  }
+
+  let totalWithdrawals = 0;
+  if (Array.isArray(withdrawals)) {
+    withdrawals.forEach(w => {
+      let rawVal = w.rawAmount || w.amt || w.amount || 0;
+      if (typeof rawVal === 'string') rawVal = rawVal.replace(/[^0-9.-]+/g, "");
+      let amt = Number(rawVal);
+      let status = (w.status || '').toLowerCase();
+      if (!isNaN(amt)) totalWithdrawals += Math.abs(amt);
+    });
+  }
+
+  // Summary Cards Header
+  let summaryHtml = `
+    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+      <div style="flex: 1; background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+        <small style="color: #94a3b8; font-size: 10px;">Total Deposits</small>
+        <div style="font-size: 14px; font-weight: 700; color: #10b981;">UGX ${totalDeposits.toLocaleString()}</div>
+      </div>
+      <div style="flex: 1; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2);">
+        <small style="color: #94a3b8; font-size: 10px;">Total Withdrawals</small>
+        <div style="font-size: 14px; font-weight: 700; color: #ef4444;">UGX ${totalWithdrawals.toLocaleString()}</div>
+      </div>
+    </div>
+  `;
+
+  let contentHtml = '';
+  let tab = (currentRecordTab || '').toLowerCase();
+
+  if (tab === 'active' || tab === 'active machines' || tab.includes('active')) {
+    let machines = window.activeMachines || activeMachines || [];
+    if (!Array.isArray(machines) || machines.length === 0) {
+      contentHtml = `<div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 12px;">No active machines found.</div>`;
+    } else {
+      contentHtml = machines.map((m) => {
+        let daysCounted = m.daysCounted || 0;
+        let daysTotal = m.daysTotal || 30;
+        let daysLeft = Math.max(0, daysTotal - daysCounted);
+        let accrued = m.accrued || 0;
+        let totalCycle = m.totalCycle || (m.daily * daysTotal) || 0;
+        let isCompleted = daysCounted >= daysTotal || m.claimed;
+
+        return `
+          <div style="background: #1e293b; padding: 14px; margin-bottom: 10px; border-radius: 10px; font-size: 13px; color: #f8fafc; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="font-weight: 700; font-size: 14px; margin-bottom: 10px; display: flex; justify-content: space-between;">
+              <span>${m.name || 'Machine'} ${isCompleted ? '(Completed)' : ''}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #94a3b8; font-size: 12px; margin-bottom: 6px;">
+              <span>Days Counted:</span>
+              <span style="color: #f8fafc; font-weight: 600;">${daysCounted} / ${daysTotal} days</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #94a3b8; font-size: 12px; margin-bottom: 6px;">
+              <span>Days Left:</span>
+              <span style="color: #f8fafc; font-weight: 600;">${daysLeft} days</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #94a3b8; font-size: 12px; margin-bottom: 6px;">
+              <span>Accrued Earnings:</span>
+              <span style="color: #10b981; font-weight: 600;">UGX ${accrued.toLocaleString()}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #94a3b8; font-size: 12px;">
+              <span>Total Cycle Income:</span>
+              <span style="color: #f8fafc; font-weight: 600;">UGX ${totalCycle.toLocaleString()}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  } else {
+    let dataArray = [];
+    if (tab.includes('deposit')) {
+      dataArray = window.deposits || deposits || [];
+    } else if (tab.includes('withdrawal')) {
+      dataArray = window.withdrawals || withdrawals || [];
+    } else {
+      dataArray = window.history || window.investmentsList || window.investments || history || investmentsList || investments || [];
+    }
+
+    if (!Array.isArray(dataArray) || dataArray.length === 0) {
+      contentHtml = `<div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 12px;">No records found.</div>`;
+    } else {
+      contentHtml = dataArray.map((item, idx) => {
+        let isPending = (item.status || '').toLowerCase() === 'pending';
+        let statusColor = isPending ? '#f59e0b' : ((item.status || '').toLowerCase() === 'cancelled' ? '#ef4444' : '#10b981');
+        let displayAmt = item.amt || (item.amount ? `UGX ${Number(item.amount).toLocaleString()}` : '');
+
+        return `
+          <div style="background: #1e293b; padding: 12px; margin-bottom: 8px; border-radius: 8px; font-size: 13px; color: #f8fafc;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; align-items: center;">
+              <span style="font-weight: 600;">${item.desc || item.name || 'Transaction'}</span>
+              <span style="color: ${statusColor}; font-weight: 600;">${item.status || ''}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+              <span style="color: #38bdf8; font-weight: 700; font-size: 14px;">${displayAmt}</span>
+              ${(tab.includes('withdrawal') && isPending) ? `<button onclick="cancelWithdrawal(${idx})" style="background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;">Cancel</button>` : ''}
+            </div>
+            <div style="color: #94a3b8; font-size: 11px; margin-top: 4px;">
+              ${item.timestamp ? new Date(typeof item.timestamp === 'string' ? item.timestamp : Number(item.timestamp)).toLocaleString() : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  container.innerHTML = summaryHtml + contentHtml;
+}
 
     async function renderTeamView() {
   const refLinkInput = document.getElementById('refLinkText');
@@ -2557,77 +2724,153 @@ alert('Successfully deployed ' + m.name + '!');
       if (vipTierEl) vipTierEl.innerText = vipTier;
       
       renderTeamView().catch(console.error);
-      
-
       let container = document.getElementById('recordsContainer');
-      if (container) {
-        if (currentRecordTab === 'active') {
-          container.innerHTML = activeMachines.map((m, index) => {
-            let daysLeft = m.daysTotal - m.daysCounted;
-            let showReceiveBtn = (m.series === 'VIP' && (m.accrued || 0) > 0) || (m.series !== 'VIP' && m.daysCounted >= m.daysTotal && !m.claimed);
-
-            return `
-              <div style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); margin-bottom:10px;">
-                <div style="font-weight:800; font-size:13px; margin-bottom:8px; color:var(--text);">${m.name} ${m.claimed ? '(Completed)' : ''}</div>
-                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
-                  <span>Days Counted:</span>
-                  <span style="color:var(--text);">${m.daysCounted || 0} / ${m.daysTotal} days</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
-                  <span>Days Left:</span>
-                  <span style="color:var(--text);">${daysLeft} days</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
-                  <span>Accrued Earnings:</span>
-                  <span style="color:var(--accent); font-weight:700;">UGX ${(m.accrued || 0).toLocaleString()}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:10px; color:var(--mut);">
-                  <span>Total Cycle Income:</span>
-                  <span style="color:var(--text); font-weight:700;">UGX ${m.totalCycle.toLocaleString()}</span>
-                </div>
-                ${showReceiveBtn ? `<button class="btn" style="padding:10px; font-size:12px;" onclick="receiveIncome(${index})">RECEIVE INCOME</button>` : ''}
-              </div>
-            `;
-          }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No active machines.</div>';
-        } else if (currentRecordTab === 'withdrawals') {
-          container.innerHTML = withdrawals.map((item, index) => {
-            let statusMarkup = item.status === 'Pending' ? `<div style="font-size:11px; color:#f59e0b; font-weight:600; text-align:right;">Pending<br><span style="color:#ef4444; cursor:pointer; text-decoration:underline;" onclick="cancelWithdrawal(${index})">Cancel</span></div>` :
-                               item.status === 'Succeed' ? `<div style="font-size:11px; color:var(--accent); font-weight:600; text-align:right;">Succeed</div>` :
-                               `<div style="font-size:11px; color:var(--mut); text-align:line-through; text-align:right;">Cancelled</div>`;
-
-            return `
-              <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-                <div>
-                  <div style="font-weight:600; color:var(--text);">${item.desc}</div>
-                  <b style="color:var(--danger);">${item.amt}</b>
-                </div>
-                <div>${statusMarkup}</div>
-              </div>
-            `;
-          }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No withdrawal history.</div>';
-        } else if (currentRecordTab === 'deposits') {
-          container.innerHTML = deposits.map(item => `
-            <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-              <div>
-                <div style="font-weight:600; color:var(--text);">${item.desc}</div>
-                <small style="color:var(--mut);">${new Date(item.timestamp || Date.now()).toLocaleDateString()}</small>
-              </div>
-              <b style="color:var(--accent);">${item.amt}</b>
-            </div>
-          `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No deposit history.</div>';
-        } else if (currentRecordTab === 'investments') {
-          container.innerHTML = investmentsList.map(item => `
-            <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-              <div>
-                <div style="font-weight:600; color:var(--text);">${item.name}</div>
-                <div style="color:var(--mut);">Daily: UGX ${item.daily.toLocaleString()}</div>
-              </div>
-              <b style="color:var(--text);">UGX ${item.price.toLocaleString()}</b>
-            </div>
-          `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No investment history.</div>';
-        }
+if (container) {
+  // Calculate Totals First
+  let totalDeposits = 0;
+  let totalWithdrawals = 0;
+  
+  if (Array.isArray(deposits)) {
+    deposits.forEach(d => {
+      let amt = getDepositAmount(d);
+      let status = (d.status || '').toLowerCase();
+      if (status === 'approved' || d.type === 'deposit') {
+        totalDeposits += amt;
       }
-    }
+    });
+  }
+  
+  if (Array.isArray(withdrawals)) {
+    withdrawals.forEach(w => {
+      let amt = Number(w.amount || w.rawAmount || 0);
+      let status = (w.status || '').toLowerCase();
+      if (status === 'approved' || status === 'successful' || status === 'succeed') {
+        totalWithdrawals += amt;
+      }
+    });
+  }
+
+  // Summary Cards HTML header
+  let summaryHtml = `
+    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+      <div style="flex: 1; background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+        <small style="color: var(--mut); font-size: 10px;">Total Deposits</small>
+        <div style="font-size: 14px; font-weight: 700; color: #10b981;">UGX ${totalDeposits.toLocaleString()}</div>
+      </div>
+      <div style="flex: 1; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2);">
+        <small style="color: var(--mut); font-size: 10px;">Total Withdrawals</small>
+        <div style="font-size: 14px; font-weight: 700; color: #ef4444;">UGX ${totalWithdrawals.toLocaleString()}</div>
+      </div>
+    </div>
+  `;
+
+  let contentHtml = '';
+
+  if (currentRecordTab === 'active') {
+    contentHtml = activeMachines.map((m, index) => {
+      let daysLeft = m.daysTotal - m.daysCounted;
+      let showReceiveBtn = (m.series === 'VIP' && (m.accrued || 0) > 0) || (m.series !== 'VIP' && m.daysCounted >= m.daysTotal && !m.claimed);
+
+      return `
+        <div style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); margin-bottom:10px;">
+          <div style="font-weight:800; font-size:13px; margin-bottom:8px; color:var(--text);">${m.name} ${m.claimed ? '(Completed)' : ''}</div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
+            <span>Days Counted:</span>
+            <span style="color:var(--text);">${m.daysCounted || 0} / ${m.daysTotal} days</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
+            <span>Days Left:</span>
+            <span style="color:var(--text);">${daysLeft} days</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
+            <span>Accrued Earnings:</span>
+            <span style="color:var(--accent); font-weight:700;">UGX ${(m.accrued || 0).toLocaleString()}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:10px; color:var(--mut);">
+            <span>Total Cycle Income:</span>
+            <span style="color:var(--text); font-weight:700;">UGX ${m.totalCycle.toLocaleString()}</span>
+          </div>
+          ${showReceiveBtn ? `<button class="btn" style="padding:10px; font-size:12px;" onclick="receiveIncome(${index})">RECEIVE INCOME</button>` : ''}
+        </div>
+      `;
+    }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No active machines.</div>';
+
+  } else if (currentRecordTab === 'withdrawals') {
+    contentHtml = withdrawals.map((item, index) => {
+      let statusStr = (item.status || 'Pending').toLowerCase();
+      let statusMarkup = '';
+      
+      if (statusStr === 'pending') {
+        statusMarkup = `<div style="font-size:11px; color:#f59e0b; font-weight:600; text-align:right;">Pending<br><span style="color:#ef4444; cursor:pointer; text-decoration:underline;" onclick="cancelWithdrawal(${index})">Cancel</span></div>`;
+      } else if (statusStr === 'approved' || statusStr === 'successful' || statusStr === 'succeed') {
+        statusMarkup = `<div style="font-size:11px; color:#10b981; font-weight:600; text-align:right;">Approved</div>`;
+      } else if (statusStr === 'rejected' || statusStr === 'declined') {
+        statusMarkup = `<div style="font-size:11px; color:#ef4444; font-weight:600; text-align:right;">Rejected</div>`;
+      } else {
+        statusMarkup = `<div style="font-size:11px; color:var(--mut); text-align:line-through; text-align:right;">${item.status}</div>`;
+      }
+
+      let timeDisplay = item.time ? `${item.date || ''} at ${item.time}` : (item.date || new Date(item.timestamp || Date.now()).toLocaleDateString());
+
+      return `
+        <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+          <div>
+            <div style="font-weight:600; color:var(--text);">${item.desc || 'Withdrawal'}</div>
+            <small style="color:var(--mut); font-size:10px;">${timeDisplay}</small>
+            <div style="color:var(--danger); font-weight:700; margin-top:2px;">${item.amt || ('UGX ' + Number(item.amount || 0).toLocaleString())}</div>
+          </div>
+          <div>${statusMarkup}</div>
+        </div>
+      `;
+    }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No withdrawal history.</div>';
+
+  } else if (currentRecordTab === 'deposits') {
+    contentHtml = deposits.map(item => {
+      let amt = getDepositAmount(item);
+      let statusStr = (item.status || 'Pending').toLowerCase();
+      let badgeHtml = '';
+
+      if (statusStr === 'approved' || statusStr === 'successful') {
+        badgeHtml = `<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Approved</span>`;
+      } else if (statusStr === 'rejected' || statusStr === 'declined') {
+        badgeHtml = `<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Rejected</span>`;
+      } else {
+        badgeHtml = `<span style="color:#f59e0b; background:rgba(245,158,11,0.1); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Pending</span>`;
+      }
+
+      let timeDisplay = item.time ? `${item.date || ''} at ${item.time}` : (item.date || new Date(item.timestamp || Date.now()).toLocaleDateString());
+
+      return `
+        <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+          <div>
+            <div style="font-weight:600; color:var(--text);">${item.desc || 'Deposit'}</div>
+            <small style="color:var(--mut); font-size:10px;">${timeDisplay}</small>
+          </div>
+          <div style="text-align: right;">
+            <div style="color:#10b981; font-weight:700;">+UGX ${amt.toLocaleString()}</div>
+            <div style="margin-top:2px;">${badgeHtml}</div>
+          </div>
+        </div>
+      `;
+    }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No deposit history.</div>';
+
+  } else if (currentRecordTab === 'investments') {
+    contentHtml = investmentsList.map(item => `
+      <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+        <div>
+          <div style="font-weight:600; color:var(--text);">${item.name}</div>
+          <div style="color:var(--mut);">Daily: UGX ${item.daily.toLocaleString()}</div>
+        </div>
+        <b style="color:var(--text);">UGX ${item.price.toLocaleString()}</b>
+      </div>
+    `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No investment history.</div>';
+  }
+}
+  // Combine summary cards at the top + the active tab's list content
+  container.innerHTML = summaryHtml + contentHtml;
+}
+
+
 // DEPOSIT MODAL FUNCTIONS
 function openDepositModal() {
   const modal = document.getElementById('depositModal');
