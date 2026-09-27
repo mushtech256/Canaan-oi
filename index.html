@@ -2559,15 +2559,20 @@ function renderRecordsList() {
   if (!container) return;
 
   // Calculate Lifetime Totals safely
-  let totalDeposits = 0;
+    let totalDeposits = 0;
   if (Array.isArray(deposits)) {
     deposits.forEach(d => {
-      let rawVal = d.rawAmount || d.amt || d.amount || 0;
-      if (typeof rawVal === 'string') rawVal = rawVal.replace(/[^0-9.-]+/g, "");
-      let amt = Number(rawVal);
-      if (!isNaN(amt)) totalDeposits += Math.abs(amt);
+      let status = (d.status || '').toLowerCase();
+      // Only count approved, successful, or completed deposits
+      if (status === 'approved' || status === 'success' || status === 'successful' || status === 'succeed') {
+        let rawVal = d.rawAmount || d.amt || d.amount || 0;
+        if (typeof rawVal === 'string') rawVal = rawVal.replace(/[^0-9.-]+/g, "");
+        let amt = Number(rawVal);
+        if (!isNaN(amt)) totalDeposits += Math.abs(amt);
+      }
     });
   }
+  
 
   let totalWithdrawals = 0;
   if (Array.isArray(withdrawals)) {
