@@ -2476,10 +2476,20 @@ alert('Successfully deployed ' + m.name + '!');
     }
 
     function confirmWithdraw() {
-      if (!hasDeposited || !hasPurchased) {
-        alert('⚠️ Withdrawal restricted! Make a deposit and rent at least one machine before withdrawing.');
-        return;
-      }
+          let hasApprovedDeposit = Array.isArray(deposits) && deposits.some(d => {
+    let s = (d.status || '').toLowerCase();
+    return s === 'approved' || s === 'success' || s === 'successful' || s === 'succeed';
+  });
+
+  let hasActiveMachines = (Array.isArray(activeMachines) && activeMachines.length > 0) || 
+                          (Array.isArray(investmentsList) && investmentsList.length > 0);
+
+  if ((!hasDeposited && !hasApprovedDeposit) || (!hasPurchased && !hasActiveMachines)) {
+    alert('⚠️ Withdrawal restricted! Make a deposit and rent at least one machine before withdrawing.');
+    return;
+  }
+  
+  
 
       let val = parseFloat(document.getElementById('withdrawAmt').value);
       if (isNaN(val) || val < 5000) { alert('⚠️ Minimum withdrawal amount is UGX 5,000.'); return; }
