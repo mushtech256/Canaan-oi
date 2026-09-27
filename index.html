@@ -1966,10 +1966,12 @@ async function adminApproveDeposit(targetUserId, depIndex, sourceArr = 'pendingD
     let newBalance = currentBalance + depAmount;
 
     await updateDoc(userDocRef, {
-      balance: newBalance,
-      deposits: depositsArr,
-      pendingDeposits: pendingArr
-    });
+  balance: newBalance,
+  deposits: depositsArr,
+  pendingDeposits: pendingArr,
+  hasDeposited: true
+});
+
 
     alert('✅ Deposit approved successfully! UGX ' + depAmount.toLocaleString());
     loadAdminDashboardData();
