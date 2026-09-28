@@ -912,78 +912,91 @@ function openVipTaskView() {
     }
 
 // Function to update the Referee's team count in Firestore
-async function checkAndQualifyReferral(currentUserId) {
+async function checkAndQualifyReferral(currentUserId, machinePrice) {
   try {
     if (!window.firebaseDb || !currentUserId) return;
-
-    const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFns;
+    
+    const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFirestore || {
+      doc: window.doc,
+      getDoc: window.getDoc,
+      updateDoc: window.updateDoc,
+      collection: window.collection,
+      query: window.query,
+      where: window.where,
+      getDocs: window.getDocs,
+      increment: window.increment
+    };
     
     // 1. Get current buyer's data
     const userDocRef = doc(window.firebaseDb, "users", currentUserId);
     const userDocSnap = await getDoc(userDocRef);
-
-    if (!userDocSnap.exists()) {
-      console.log("Buyer document not found in Firestore.");
-      return;
-    }
+    
+    if (!userDocSnap.exists()) return;
     
     const userData = userDocSnap.data();
-    console.log("Buyer Data loaded:", userData);
+    
+    // If already qualified (one-time check) or no referrer, stop
+    if (userData.referralQualified || userData.refBonusPaid) return;
+    if (!userData.referredBy) return;
+    if (!machinePrice || machinePrice <= 0) return;
 
-    // If already qualified or no referrer, stop
-    if (userData.referralQualified) {
-      console.log("Referral already qualified previously.");
-      return;
-    }
-
-    if (!userData.referredBy) {
-      console.log("No referredBy code present on buyer.");
-      return;
-    }
-
-    // Clean up referrer code (trim spaces)
+    // 2. Find the referrer by invite code
     const cleanRefCode = String(userData.referredBy).trim();
-    console.log("Searching for inviter with inviteCode:", cleanRefCode);
+    const q = query(collection(window.firebaseDb, "users"), where("inviteCode", "==", cleanRefCode));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) return;
+    
+    let referrerDocRef = null;
+    let referrerData = null;
+    
+    querySnapshot.forEach((docSnap) => {
+      referrerDocRef = docSnap.ref;
+      referrerData = docSnap.data();
+    });
 
-    // 2. Query referrer by inviteCode
-    const q = query(
-      collection(window.firebaseDb, "users"), 
-      where("inviteCode", "==", cleanRefCode)
-    );
-    const querySnap = await getDocs(q);
+    if (!referrerDocRef || !referrerData) return;
 
-    if (querySnap.empty) {
-      console.error("No inviter document matched inviteCode:", cleanRefCode);
-      return;
-    }
+    // 3. Check Referrer Active Qualification Rule
+    // The referrer must be active (has deposited or purchased a machine)
+    const isReferrerActive = referrerData.hasDeposited === true || 
+                             referrerData.hasPurchased === true || 
+                             (Array.isArray(referrerData.machines) && referrerData.machines.length > 0);
 
-    // 3. Inviter found -> Update teamCount
-    const referrerDoc = querySnap.docs[0];
-    const referrerRef = doc(window.firebaseDb, "users", referrerDoc.id);
-    const referrerData = referrerDoc.data();
+    if (isReferrerActive) {
+      const refBalance = Number(referrerData.balance || 0);
+      const referrerCommission = machinePrice * 0.10; // 10% commission for referrer
+      
+      // Also update teamCount and qualifiedReferrals as your original code did
+      let qualifiedList = referrerData.qualifiedReferrals || [];
+      if (!qualifiedList.includes(currentUserId)) {
+        qualifiedList.push(currentUserId);
+      }
 
-    let qualifiedList = referrerData.qualifiedReferrals || [];
-
-    if (!qualifiedList.includes(currentUserId)) {
-      qualifiedList.push(currentUserId);
-
-      // Increment inviter's teamCount
-      await updateDoc(referrerRef, {
-        teamCount: increment(1),
+      await updateDoc(referrerDocRef, {
+        balance: refBalance + referrerCommission,
+        teamCount: increment ? increment(1) : (Number(referrerData.teamCount || 0) + 1),
         qualifiedReferrals: qualifiedList
       });
-
-      // Mark buyer as qualified
-      await updateDoc(userDocRef, {
-        referralQualified: true
-      });
-
-      console.log("SUCCESS: Team count incremented for inviter UID:", referrerDoc.id);
     }
+
+    // 4. Give 10% one-time bonus to the Referee (the buyer)
+    const refereeBonus = machinePrice * 0.10; // 10% one-time bonus for buyer
+    const currentBalance = Number(userData.balance || 0);
+    
+    await updateDoc(userDocRef, {
+      balance: currentBalance + refereeBonus,
+      referralQualified: true,
+      refBonusPaid: true // Locks it so it never runs again on future machine purchases
+    });
+
+    console.log("SUCCESS: Referral commissions processed successfully.");
+
   } catch (err) {
-    console.error("Referral Sync Error:", err);
+    console.error("Referral qualification error:", err);
   }
 }
+
 
     function switchAuthTab(tab) {
       document.getElementById('loginForm').style.display = (tab === 'login') ? 'block' : 'none';
@@ -2430,18 +2443,21 @@ if (viewName === 'chats') renderUserChat();
 
       saveUserData();
 
-// ADD THIS TRIGGER HERE:
-if (window.firebaseDb) {
-  const activeUid = window.currentUser?.uid || currentUserId;
-  if (activeUid) {
-    await checkAndQualifyReferral(activeUid);
-  }
-}
+      // Save data and trigger referral check with the machine price
+      saveUserData();
 
-updateUI();
-alert('Successfully deployed ' + m.name + '!');
-}
+      // UPDATED REFERRAL TRIGGER:
+      if (window.firebaseDb) {
+        const activeUid = window.currentUser?.uid || currentUserId;
+        if (activeUid) {
+          await checkAndQualifyReferral(activeUid, m.price);
+        }
+      }
 
+      updateUI();
+      alert('Successfully deployed ' + m.name + '!');
+    }
+    
 
     function receiveIncome(index) {
       let machine = activeMachines[index];
