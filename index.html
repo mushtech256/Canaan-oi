@@ -1971,6 +1971,16 @@ async function adminApproveDeposit(targetUserId, depIndex, sourceArr = 'pendingD
   pendingDeposits: pendingArr,
   hasDeposited: true
 });
+// Update global platform total deposits
+try {
+  const statsRef = doc(window.firebaseDb, "platform_stats", "global");
+  const { increment } = window.firebaseFns;
+  await updateDoc(statsRef, {
+    totalDeposits: increment(depAmount)
+  });
+} catch (statErr) {
+  console.error("Error updating global platform stats: ", statErr);
+}
 
 
     alert('✅ Deposit approved successfully! UGX ' + depAmount.toLocaleString());
