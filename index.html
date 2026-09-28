@@ -912,120 +912,78 @@ function openVipTaskView() {
     }
 
 // Function to update the Referee's team count in Firestore
-async function checkAndQualifyReferral(currentUserId, machinePrice) {
+async function checkAndQualifyReferral(currentUserId) {
   try {
-    console.log("-> Running checkAndQualifyReferral for:", currentUserId, "Price:", machinePrice);
     if (!window.firebaseDb || !currentUserId) return;
+
+    const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFns;
     
-    const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFirestore || {
-      doc: window.doc,
-      getDoc: window.getDoc,
-      updateDoc: window.updateDoc,
-      collection: window.collection,
-      query: window.query,
-      where: window.where,
-      getDocs: window.getDocs,
-      increment: window.increment
-    };
-    
-    // 1. Fetch current buyer's document
+    // 1. Get current buyer's data
     const userDocRef = doc(window.firebaseDb, "users", currentUserId);
     const userDocSnap = await getDoc(userDocRef);
-    if (!userDocSnap.exists()) return;
+
+    if (!userDocSnap.exists()) {
+      console.log("Buyer document not found in Firestore.");
+      return;
+    }
     
     const userData = userDocSnap.data();
-    
-    // Check one-time qualification gate
-    if (userData.referralQualified || userData.refBonusPaid) {
-      console.log("-> User already qualified previously.");
+    console.log("Buyer Data loaded:", userData);
+
+    // If already qualified or no referrer, stop
+    if (userData.referralQualified) {
+      console.log("Referral already qualified previously.");
       return;
     }
+
     if (!userData.referredBy) {
-      console.log("-> User has no referredBy code.");
+      console.log("No referredBy code present on buyer.");
       return;
     }
 
-    // Determine price safely
-    const finalPrice = Number(machinePrice || userData.lastPurchasedMachinePrice || 0);
-
-    // 2. Query Referrer by invite code OR user ID
+    // Clean up referrer code (trim spaces)
     const cleanRefCode = String(userData.referredBy).trim();
-    let referrerDocRef = null;
-    let referrerData = null;
+    console.log("Searching for inviter with inviteCode:", cleanRefCode);
 
-    // Try finding by inviteCode
-    const q = query(collection(window.firebaseDb, "users"), where("inviteCode", "==", cleanRefCode));
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const docSnap = querySnapshot.docs[0];
-      referrerDocRef = docSnap.ref;
-      referrerData = docSnap.data();
-    } else {
-      // Fallback: check if referredBy is directly the referrer's UID
-      const directRef = doc(window.firebaseDb, "users", cleanRefCode);
-      const directSnap = await getDoc(directRef);
-      if (directSnap.exists()) {
-        referrerDocRef = directRef;
-        referrerData = directSnap.data();
-      }
-    }
+    // 2. Query referrer by inviteCode
+    const q = query(
+      collection(window.firebaseDb, "users"), 
+      where("inviteCode", "==", cleanRefCode)
+    );
+    const querySnap = await getDocs(q);
 
-    if (!referrerDocRef || !referrerData) {
-      console.log("-> Referrer not found for code:", cleanRefCode);
+    if (querySnap.empty) {
+      console.error("No inviter document matched inviteCode:", cleanRefCode);
       return;
     }
 
-    // 3. ALWAYS update team count for the referrer (Unconditional)
+    // 3. Inviter found -> Update teamCount
+    const referrerDoc = querySnap.docs[0];
+    const referrerRef = doc(window.firebaseDb, "users", referrerDoc.id);
+    const referrerData = referrerDoc.data();
+
     let qualifiedList = referrerData.qualifiedReferrals || [];
+
     if (!qualifiedList.includes(currentUserId)) {
       qualifiedList.push(currentUserId);
+
+      // Increment inviter's teamCount
+      await updateDoc(referrerRef, {
+        teamCount: increment(1),
+        qualifiedReferrals: qualifiedList
+      });
+
+      // Mark buyer as qualified
+      await updateDoc(userDocRef, {
+        referralQualified: true
+      });
+
+      console.log("SUCCESS: Team count incremented for inviter UID:", referrerDoc.id);
     }
-
-    const referrerUpdates = {
-      teamCount: increment ? increment(1) : (Number(referrerData.teamCount || 0) + 1),
-      qualifiedReferrals: qualifiedList
-    };
-
-    // 4. Award 10% Commission ONLY IF Referrer is Active
-    const isReferrerActive = referrerData.hasDeposited === true || 
-                             referrerData.hasPurchased === true || 
-                             (Array.isArray(referrerData.machines) && referrerData.machines.length > 0);
-
-    if (isReferrerActive && finalPrice > 0) {
-      const refBalance = Number(referrerData.balance || 0);
-      const commission = finalPrice * 0.10;
-      referrerUpdates.balance = refBalance + commission;
-      console.log("-> Active Referrer qualified! Commission added:", commission);
-    } else {
-      console.log("-> Referrer is inactive or price is 0; team count updated, commission skipped.");
-    }
-
-    // Commit updates to referrer
-    await updateDoc(referrerDocRef, referrerUpdates);
-
-    // 5. Award 10% One-Time Bonus to Referee (Buyer) & Lock Gate
-    const refereeUpdates = {
-      referralQualified: true,
-      refBonusPaid: true
-    };
-
-    if (finalPrice > 0) {
-      const refereeBonus = finalPrice * 0.10;
-      const currentBalance = Number(userData.balance || 0);
-      refereeUpdates.balance = currentBalance + refereeBonus;
-      console.log("-> Referee 10% bonus awarded:", refereeBonus);
-    }
-
-    await updateDoc(userDocRef, refereeUpdates);
-    console.log("-> SUCCESS: Referral process completed.");
-
   } catch (err) {
-    console.error("Referral process error:", err);
+    console.error("Referral Sync Error:", err);
   }
 }
-
-
     function switchAuthTab(tab) {
       document.getElementById('loginForm').style.display = (tab === 'login') ? 'block' : 'none';
       document.getElementById('registerForm').style.display = (tab === 'register') ? 'block' : 'none';
