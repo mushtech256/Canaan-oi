@@ -914,7 +914,11 @@ function openVipTaskView() {
 // Function to update the Referee's team count in Firestore
 async function checkAndQualifyReferral(currentUserId, machinePrice) {
   try {
-    if (!window.firebaseDb || !currentUserId) return;
+    console.log("-> Starting checkAndQualifyReferral for user:", currentUserId, "with price:", machinePrice);
+    if (!window.firebaseDb || !currentUserId) {
+      console.log("-> Aborted: No firebaseDb or currentUserId");
+      return;
+    }
     
     const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFirestore || {
       doc: window.doc,
@@ -931,21 +935,41 @@ async function checkAndQualifyReferral(currentUserId, machinePrice) {
     const userDocRef = doc(window.firebaseDb, "users", currentUserId);
     const userDocSnap = await getDoc(userDocRef);
     
-    if (!userDocSnap.exists()) return;
+    if (!userDocSnap.exists()) {
+      console.log("-> Aborted: Buyer document not found in Firestore");
+      return;
+    }
     
     const userData = userDocSnap.data();
+    console.log("-> Buyer data loaded:", userData);
     
-    // If already qualified (one-time check) or no referrer, stop
-    if (userData.referralQualified || userData.refBonusPaid) return;
-    if (!userData.referredBy) return;
-    if (!machinePrice || machinePrice <= 0) return;
+    if (userData.referralQualified || userData.refBonusPaid) {
+      console.log("-> Aborted: User already qualified previously");
+      return;
+    }
+    if (!userData.referredBy) {
+      console.log("-> Aborted: User has no referredBy code");
+      return;
+    }
+    
+    // Fallback if machinePrice wasn't passed directly
+    let finalPrice = Number(machinePrice || userData.lastPurchasedMachinePrice || 0);
+    if (finalPrice <= 0) {
+      console.log("-> Aborted: Machine price is zero or invalid:", finalPrice);
+      return;
+    }
 
     // 2. Find the referrer by invite code
     const cleanRefCode = String(userData.referredBy).trim();
+    console.log("-> Searching for referrer with inviteCode:", cleanRefCode);
+    
     const q = query(collection(window.firebaseDb, "users"), where("inviteCode", "==", cleanRefCode));
     const querySnapshot = await getDocs(q);
     
-    if (querySnapshot.empty) return;
+    if (querySnapshot.empty) {
+      console.log("-> Aborted: No user found matching inviteCode:", cleanRefCode);
+      return;
+    }
     
     let referrerDocRef = null;
     let referrerData = null;
@@ -955,19 +979,24 @@ async function checkAndQualifyReferral(currentUserId, machinePrice) {
       referrerData = docSnap.data();
     });
 
-    if (!referrerDocRef || !referrerData) return;
+    if (!referrerDocRef || !referrerData) {
+      console.log("-> Aborted: Referrer reference or data is null");
+      return;
+    }
+
+    console.log("-> Referrer found:", referrerData);
 
     // 3. Check Referrer Active Qualification Rule
-    // The referrer must be active (has deposited or purchased a machine)
     const isReferrerActive = referrerData.hasDeposited === true || 
                              referrerData.hasPurchased === true || 
                              (Array.isArray(referrerData.machines) && referrerData.machines.length > 0);
 
+    console.log("-> Is referrer active?", isReferrerActive);
+
     if (isReferrerActive) {
       const refBalance = Number(referrerData.balance || 0);
-      const referrerCommission = machinePrice * 0.10; // 10% commission for referrer
+      const referrerCommission = finalPrice * 0.10;
       
-      // Also update teamCount and qualifiedReferrals as your original code did
       let qualifiedList = referrerData.qualifiedReferrals || [];
       if (!qualifiedList.includes(currentUserId)) {
         qualifiedList.push(currentUserId);
@@ -978,22 +1007,25 @@ async function checkAndQualifyReferral(currentUserId, machinePrice) {
         teamCount: increment ? increment(1) : (Number(referrerData.teamCount || 0) + 1),
         qualifiedReferrals: qualifiedList
       });
+      console.log("-> SUCCESS: Referrer paid commission and teamCount incremented.");
+    } else {
+      console.log("-> Referrer is NOT active yet, commission skipped, but let's check team count if your original logic wanted it regardless. (Currently gated by active status).");
     }
 
     // 4. Give 10% one-time bonus to the Referee (the buyer)
-    const refereeBonus = machinePrice * 0.10; // 10% one-time bonus for buyer
+    const refereeBonus = finalPrice * 0.10;
     const currentBalance = Number(userData.balance || 0);
     
     await updateDoc(userDocRef, {
       balance: currentBalance + refereeBonus,
       referralQualified: true,
-      refBonusPaid: true // Locks it so it never runs again on future machine purchases
+      refBonusPaid: true
     });
-
-    console.log("SUCCESS: Referral commissions processed successfully.");
+    
+    console.log("-> SUCCESS: Referee awarded one-time bonus.");
 
   } catch (err) {
-    console.error("Referral qualification error:", err);
+    console.error("-> Referral qualification critical error:", err);
   }
 }
 
