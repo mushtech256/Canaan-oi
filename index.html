@@ -911,17 +911,16 @@ function openVipTaskView() {
       return code;
     }
 
-// Function to update the Referee's team count in Firestore
-async function checkAndQualifyReferral(currentUserId) {
+// Function to update the Referrer's team count, 5% commission, and VIP level in Firestore
+async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
   try {
     if (!window.firebaseDb || !currentUserId) return;
-
     const { doc, getDoc, updateDoc, collection, query, where, getDocs, increment } = window.firebaseFns;
-    
+
     // 1. Get current buyer's data
     const userDocRef = doc(window.firebaseDb, "users", currentUserId);
     const userDocSnap = await getDoc(userDocRef);
-
+    
     if (!userDocSnap.exists()) {
       console.log("Buyer document not found in Firestore.");
       return;
@@ -935,7 +934,7 @@ async function checkAndQualifyReferral(currentUserId) {
       console.log("Referral already qualified previously.");
       return;
     }
-
+    
     if (!userData.referredBy) {
       console.log("No referredBy code present on buyer.");
       return;
@@ -947,7 +946,7 @@ async function checkAndQualifyReferral(currentUserId) {
 
     // 2. Query referrer by inviteCode
     const q = query(
-      collection(window.firebaseDb, "users"), 
+      collection(window.firebaseDb, "users"),
       where("inviteCode", "==", cleanRefCode)
     );
     const querySnap = await getDocs(q);
@@ -957,33 +956,55 @@ async function checkAndQualifyReferral(currentUserId) {
       return;
     }
 
-    // 3. Inviter found -> Update teamCount
+    // 3. Inviter found -> Update teamCount, balance (5%), and VIP level
     const referrerDoc = querySnap.docs[0];
     const referrerRef = doc(window.firebaseDb, "users", referrerDoc.id);
     const referrerData = referrerDoc.data();
 
     let qualifiedList = referrerData.qualifiedReferrals || [];
-
     if (!qualifiedList.includes(currentUserId)) {
       qualifiedList.push(currentUserId);
-
-      // Increment inviter's teamCount
-      await updateDoc(referrerRef, {
-        teamCount: increment(1),
-        qualifiedReferrals: qualifiedList
-      });
-
-      // Mark buyer as qualified
-      await updateDoc(userDocRef, {
-        referralQualified: true
-      });
-
-      console.log("SUCCESS: Team count incremented for inviter UID:", referrerDoc.id);
     }
+
+    const newTeamCount = qualifiedList.length;
+    
+    // Calculate 5% commission from the purchased machine price
+    const commission = (machinePrice || 200000) * 0.05;
+    const currentBalance = referrerData.balance || 0;
+    const currentTotalBonus = referrerData.totalReferralBonus || 0;
+
+    // Determine VIP level based on team count milestones (3, 10, 25, 40)
+    let unlockedVip = referrerData.vipLevel || 0;
+    if (newTeamCount >= 40) {
+      unlockedVip = Math.max(unlockedVip, 4);
+    } else if (newTeamCount >= 25) {
+      unlockedVip = Math.max(unlockedVip, 3);
+    } else if (newTeamCount >= 10) {
+      unlockedVip = Math.max(unlockedVip, 2);
+    } else if (newTeamCount >= 3) {
+      unlockedVip = Math.max(unlockedVip, 1);
+    }
+
+    // Update Referrer with 5% cash commission, new team count, qualified list, and VIP level
+    await updateDoc(referrerRef, {
+      balance: currentBalance + commission,
+      totalReferralBonus: currentTotalBonus + commission,
+      teamCount: newTeamCount,
+      qualifiedReferrals: qualifiedList,
+      vipLevel: unlockedVip
+    });
+
+    // Mark buyer as qualified so it never runs twice
+    await updateDoc(userDocRef, {
+      referralQualified: true
+    });
+
+    console.log("SUCCESS: 5% commission paid, team count incremented, and VIP level checked for inviter.");
   } catch (err) {
     console.error("Referral Sync Error:", err);
   }
 }
+
     function switchAuthTab(tab) {
       document.getElementById('loginForm').style.display = (tab === 'login') ? 'block' : 'none';
       document.getElementById('registerForm').style.display = (tab === 'register') ? 'block' : 'none';
@@ -1218,12 +1239,22 @@ async function checkAndQualifyReferral(currentUserId) {
         inviteCode = generateUniqueRefCode();
 
         let userData = {
-          phone: rawPhone, email, inviteCode, referredBy: referredByCode, balance: 5000, vipTier: 'None', teamCount: 0,
-          deposits: [{ desc: 'Welcome Bonus', amt: '+UGX 5,000', rawAmt: 0, timestamp: new Date().getTime() }],
-          withdrawals: [], investmentsList: [], activeMachines: [],
-          lastRewardDate: '', hasDeposited: false, hasPurchased: false, claimedMilestones: [],
-          isBanned: false, apologyMessage: ''
-        };
+  phone: rawPhone,
+  email: email,
+  inviteCode: inviteCode,
+  referredBy: referredByCode,
+  referralQualified: false,
+  deposits: [{ desc: 'Welcome Bonus', amt: '+UGX 5,000', rawAmt: 5000, timestamp: Date.now() }],
+  withdrawals: [],
+  investmentsList: [],
+  activeMachines: [],
+  lastRewardDate: "",
+  hasDeposited: false,
+  hasPurchased: false,
+  isBanned: false,
+  apologyMessage: ""
+};
+
 
         await setDoc(doc(window.firebaseDb, "users", currentUserId), userData);
             localStorage.setItem('canaan_userId', currentUser.uid);
