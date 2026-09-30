@@ -744,12 +744,32 @@
     <div class="modal-content">
       <div style="font-weight: 800; font-size: 14px; margin-bottom: 6px;">Withdraw Funds</div>
       <div style="font-size: 11px; color: var(--warning); margin-bottom: 12px; line-height: 1.4;">⚠️ Minimum withdrawal is UGX 5,000. A 10% network fee applies automatically.</div>
-      <div class="form-group">
-        <label>Enter Amount (UGX):</label>
-        <input type="number" id="withdrawAmt" placeholder="0" oninput="calculateWithdrawFee()">
-      </div>
+<div class="form-group" style="margin-bottom: 10px;">
+  <label style="font-size: 11px; display: block; margin-bottom: 4px;">Account Name:</label>
+  <input type="text" id="withdrawNameInput" placeholder="Enter mobile money name" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text);">
+</div>
+
+<div class="form-group" style="margin-bottom: 10px;">
+  <label style="font-size: 11px; display: block; margin-bottom: 4px;">Network Provider:</label>
+  <select id="withdrawNetworkInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text);">
+    <option value="">Select Network</option>
+    <option value="MTN">MTN Mobile Money</option>
+    <option value="Airtel">Airtel Money</option>
+  </select>
+</div>
+
+<div class="form-group" style="margin-bottom: 10px;">
+  <label style="font-size: 11px; display: block; margin-bottom: 4px;">Phone Number:</label>
+  <input type="tel" id="withdrawPhoneInput" placeholder="07XXXXXXXX" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text);">
+</div>
+
+<div class="form-group" style="margin-bottom: 10px;">
+  <label style="font-size: 11px; display: block; margin-bottom: 4px;">Enter Amount (UGX):</label>
+  <input type="number" id="withdrawAmountInput" placeholder="0" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text);">
+</div>
+
       <div id="withdrawFeeCalc" style="font-size: 11px; color: var(--mut); margin-bottom: 14px; display:none;"></div>
-      <button class="btn" style="margin-bottom: 8px;" onclick="confirmWithdraw()">Request Withdrawal</button>
+      <button class="btn" style="margin-bottom: 8px;" onclick="submitWithdrawalRequest()">Request Withdrawal</button>
       <button class="btn" style="background:var(--card); border:1px solid var(--border); color:var(--text);" onclick="closeModal('withdrawModal')">Cancel</button>
     </div>
   </div>
@@ -1819,16 +1839,31 @@ function adminSaveMachineFromForm() {
 
 
 async function submitWithdrawalRequest() {
-  const amountInput = document.getElementById('withdrawAmountInput');
+    const amountInput = document.getElementById('withdrawAmountInput');
   const phoneInput = document.getElementById('withdrawPhoneInput');
+  const nameInput = document.getElementById('withdrawNameInput');       // <--- Add Name Input ID
+  const networkInput = document.getElementById('withdrawNetworkInput'); // <--- Add Network Provider ID
 
   const amount = amountInput ? Number(amountInput.value) : 0;
   const phone = phoneInput ? phoneInput.value.trim() : currentUserPhone;
+  const name = nameInput ? nameInput.value.trim() : '';                 // <--- Get Name value
+  const network = networkInput ? networkInput.value : '';               // <--- Get Network value
 
   if (!currentUserId) {
     alert("⚠️ Please log in first.");
     return;
   }
+  
+  // Validation checks for Name and Network
+  if (!name) {
+    alert("⚠️ Please enter the account name.");
+    return;
+  }
+  if (!network) {
+    alert("⚠️ Please select a network provider.");
+    return;
+  }
+
   if (!amount || amount < 5000) {
     alert("⚠️ Minimum withdrawal amount is UGX 5,000.");
     return;
@@ -1855,6 +1890,8 @@ async function submitWithdrawalRequest() {
       let wList = uData.withdrawals || [];
       const newWithdrawal = {
         id: 'WD-' + Date.now(),
+        name: name,         // <--- Saved to withdrawal record
+        network: network,   // <--- Saved to withdrawal record
         rawAmount: amount,
         amount: amount,
         phone: phone,
@@ -1880,12 +1917,15 @@ async function submitWithdrawalRequest() {
       if (typeof closeWithdrawModal === 'function') closeWithdrawModal();
       
       if (amountInput) amountInput.value = '';
+      if (nameInput) nameInput.value = '';         // <--- Reset input
+      if (networkInput) networkInput.value = '';   // <--- Reset input
     }
   } catch (e) {
     console.error("Withdrawal error:", e);
     alert("Error submitting withdrawal: " + e.message);
   }
 }
+
 // Helper to safely extract deposit amounts
 function getDepositAmount(dep) {
   if (!dep) return 0;
@@ -2642,7 +2682,9 @@ function renderRecordsList() {
   }
 
   // Summary Cards Header
-  let summaryHtml = `
+  let summaryHtml = "";
+  if (tab.includes('deposit') || tab.includes('withdrawal')) {
+  summaryHtml = `
     <div style="display: flex; gap: 10px; margin-bottom: 12px;">
       <div style="flex: 1; background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
         <small style="color: #94a3b8; font-size: 10px;">Total Deposits</small>
@@ -2654,6 +2696,8 @@ function renderRecordsList() {
       </div>
     </div>
   `;
+}
+
 
   let contentHtml = '';
   let tab = (currentRecordTab || '').toLowerCase();
