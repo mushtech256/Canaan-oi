@@ -2681,9 +2681,11 @@ function renderRecordsList() {
     });
   }
 
-  // Summary Cards Header
-  let summaryHtml = "";
-  if (tab.includes('deposit') || tab.includes('withdrawal')) {
+  let tab = (currentRecordTab || "").toLowerCase();
+
+// Summary Cards Header
+let summaryHtml = "";
+if (tab.includes('deposit') || tab.includes('withdrawal')) {
   summaryHtml = `
     <div style="display: flex; gap: 10px; margin-bottom: 12px;">
       <div style="flex: 1; background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
@@ -2699,8 +2701,8 @@ function renderRecordsList() {
 }
 
 
+
   let contentHtml = '';
-  let tab = (currentRecordTab || '').toLowerCase();
 
   if (tab === 'active' || tab === 'active machines' || tab.includes('active')) {
     let machines = window.activeMachines || activeMachines || [];
