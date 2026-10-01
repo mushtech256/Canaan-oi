@@ -311,13 +311,16 @@
       <div style="font-size: 11px; color: var(--mut); margin-bottom: 12px; line-height: 1.4;">Only the 1st machine of non-VIP series allows up to 2 active purchases. Others allow 1 active purchase until cycle ends.</div>
       
       <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px;">
-        <button id="btnSeriesALL" class="btn" style="padding: 6px 14px; font-size: 11px; width: auto;" onclick="setSeries('ALL')">ALL</button>
-        <button id="btnSeriesB" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('B')">B-SERIES</button>
-        <button id="btnSeriesR" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('R')">R-SERIES</button>
-        <button id="btnSeriesK" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('K')">K-SERIES</button>
-        <button id="btnSeriesJ" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('J')">J-SERIES</button>
-        <button id="btnSeriesVIP" class="btn" style="background: var(--card); color: var(--text); padding: 6px 14px; font-size: 11px; width: auto; border: 1px solid var(--border);" onclick="setSeries('VIP')">VIP</button>
-      </div>
+        <button id="btnSeriesALL" onclick="setSeries('ALL')" class="btn" style="...">ALL</button>
+<button id="btnSeriesB" onclick="setSeries('B')" class="btn" style="...">B-SERIES</button>
+<button id="btnSeriesH" onclick="setSeries('H')" class="btn" style="...">H-SERIES</button>
+<button id="btnSeriesR" onclick="setSeries('R')" class="btn" style="...">R-SERIES</button>
+<button id="btnSeriesK" onclick="setSeries('K')" class="btn" style="...">K-SERIES</button>
+<button id="btnSeriesJ" onclick="setSeries('J')" class="btn" style="...">J-SERIES</button>
+<button id="btnSeriesVIP" onclick="setSeries('VIP')" class="btn" style="...">VIP</button>
+
+   </div>
+     
       
       <div id="machinesGrid" style="display: flex; flex-direction: column; gap: 12px;"></div>
     </div>
@@ -888,31 +891,37 @@ function openVipTaskView() {
 }
 
 
-    const seriesDurations = { 'B': 25, 'R': 15, 'K': 10, 'J': 7, 'VIP': 5 };
+    const seriesDurations = { 'B': 25, 'H': 30, 'R': 15, 'K': 10, 'J': 7, 'VIP': 5 };
 
-    let machines = [
-      { id: 'b1', series: 'B', name: 'B1 Machine', price: 30000, daily: 3000, image: 'https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png', isFirstInSeries: true },
-      { id: 'b2', series: 'B', name: 'B2 Machine', price: 65000, daily: 6000, image: 'https://i.postimg.cc/fyx9XBZr/11-5dda.png', isFirstInSeries: false },
-      { id: 'b3', series: 'B', name: 'B3 Machine', price: 100000, daily: 8000, image: 'https://i.postimg.cc/SxZzWX05/71-d7eb.png', isFirstInSeries: false },
-      { id: 'b4', series: 'B', name: 'B4 Machine', price: 250000, daily: 18000, image: 'https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png', isFirstInSeries: false },
-      { id: 'r1', series: 'R', name: 'R1 Machine', price: 200000, daily: 20000, image: 'https://i.postimg.cc/N0Hf5LQD/r16vpdwr-2fa1.png', isFirstInSeries: true },
-      { id: 'r2', series: 'R', name: 'R2 Machine', price: 450000, daily: 40000, image: 'https://i.postimg.cc/tR5R1KGK/774an9gs-3c68.png', isFirstInSeries: false },
-      { id: 'r3', series: 'R', name: 'R3 Machine', price: 700000, daily: 67000, image: 'https://i.postimg.cc/9QNYcgfV/IMG-20260909-WA0103(1).jpg', isFirstInSeries: false },
-      { id: 'r4', series: 'R', name: 'R4 Machine', price: 1000000, daily: 110000, image: 'https://i.postimg.cc/WzjM5Q5H/IMG-20260909-WA0104.jpg', isFirstInSeries: false },
-      { id: 'k1', series: 'K', name: 'K1 Machine', price: 500000, daily: 70000, image: 'https://i.postimg.cc/9QNYcgfV/IMG-20260909-WA0103(1).jpg', isFirstInSeries: true },
-      { id: 'k2', series: 'K', name: 'K2 Machine', price: 850000, daily: 125000, image: 'https://i.postimg.cc/1XJNJ4nF/IMG-20260909-WA0102.jpg', isFirstInSeries: false },
-      { id: 'k3', series: 'K', name: 'K3 Machine', price: 1500000, daily: 210000, image: 'https://i.postimg.cc/T17pnSFf/IMG-20260909-WA0101.jpg', isFirstInSeries: false },
-      { id: 'k4', series: 'K', name: 'K4 Machine', price: 3000000, daily: 500000, image: 'https://i.postimg.cc/qRpRS4dc/IMG-20260909-WA0099.jpg', isFirstInSeries: false },
-      { id: 'j1', series: 'J', name: 'J1 Machine', price: 300000, daily: 57500, image: 'https://i.postimg.cc/1tKH1mVz/IMG-20260909-WA0114.jpg', isFirstInSeries: true },
-      { id: 'j2', series: 'J', name: 'J2 Machine', price: 500000, daily: 100000, image: 'https://i.postimg.cc/wjsQTcR4/IMG-20260909-WA0111.jpg', isFirstInSeries: false },
-      { id: 'j3', series: 'J', name: 'J3 Machine', price: 1000000, daily: 250000, image: 'https://i.postimg.cc/D0ZqVqKc/IMG-20260909-WA0110.jpg', isFirstInSeries: false },
-      { id: 'j4', series: 'J', name: 'J4 Machine', price: 3000000, daily: 750000, image: 'https://i.postimg.cc/pdsYL2Jk/IMG-20260909-WA0130.jpg', isFirstInSeries: false },
-      { id: 'vip1', series: 'VIP', name: 'VIP 1 Machine', price: 500000, daily: 125000, image: 'https://i.postimg.cc/YS0L8QQ4/IMG-20260909-WA0131.jpg', isFirstInSeries: false, requiredInvestors: 3 },
-      { id: 'vip2', series: 'VIP', name: 'VIP 2 Machine', price: 1000000, daily: 270000, image: 'https://i.postimg.cc/t4CsCFSv/IMG-20260909-WA0108.jpg', isFirstInSeries: false, requiredInvestors: 10 },
-      { id: 'vip3', series: 'VIP', name: 'VIP 3 Machine', price: 4000000, daily: 1400000, image: 'https://i.postimg.cc/PJTtVk09/IMG-20260909-WA0129.jpg', isFirstInSeries: false, requiredInvestors: 20 },
-      { id: 'vip4', series: 'VIP', name: 'VIP 4 Machine', price: 7500000, daily: 2400000, image: 'https://i.postimg.cc/YqXpRZ8c/IMG-20260909-WA0123.jpg', isFirstInSeries: false, requiredInvestors: 50 }
-    ];
+let machines = [
+  { id: 'b1', series: 'B', name: 'B1 Machine', price: 30000, daily: 3000, image: 'https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png', isFirstInSeries: true },
+  { id: 'b2', series: 'B', name: 'B2 Machine', price: 65000, daily: 6000, image: 'https://i.postimg.cc/fyx9XBZr/11-5dda.png', isFirstInSeries: false },
+  { id: 'b3', series: 'B', name: 'B3 Machine', price: 100000, daily: 8000, image: 'https://i.postimg.cc/SxZzWX05/71-d7eb.png', isFirstInSeries: false },
+  { id: 'b4', series: 'B', name: 'B4 Machine', price: 250000, daily: 18000, image: 'https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png', isFirstInSeries: false },
+  
+  // --- NEW H-SERIES (30-Day Duration with Daily Withdrawal Payouts) ---
+  { id: 'h1', series: 'H', name: 'H1 Machine', price: 50000, daily: 3000, daysTotal: 30, totalCycle: 90000, image: 'https://i.postimg.cc/WbRLmyXQ/IMG-20261001-WA0161.jpg', isFirstInSeries: true, badgeText: 'Daily Withdrawal' },
+  { id: 'h2', series: 'H', name: 'H2 Machine', price: 80000, daily: 5000, daysTotal: 30, totalCycle: 150000, image: 'https://i.postimg.cc/rmWgqfxc/IMG-20261001-WA0162.jpg ', isFirstInSeries: false, badgeText: 'Daily Withdrawal' },
 
+  { id: 'r1', series: 'R', name: 'R1 Machine', price: 200000, daily: 20000, image: 'https://i.postimg.cc/N0Hf5LQD/r16vpdwr-2fa1.png', isFirstInSeries: true },
+  { id: 'r2', series: 'R', name: 'R2 Machine', price: 450000, daily: 40000, image: 'https://i.postimg.cc/tR5R1KGK/774an9gs-3c68.png', isFirstInSeries: false },
+  { id: 'r3', series: 'R', name: 'R3 Machine', price: 700000, daily: 67000, image: 'https://i.postimg.cc/9QNYcgfV/IMG-20260909-WA0103(1).jpg', isFirstInSeries: false },
+  { id: 'r4', series: 'R', name: 'R4 Machine', price: 1000000, daily: 110000, image: 'https://i.postimg.cc/WzjM5Q5H/IMG-20260909-WA0104.jpg', isFirstInSeries: false },
+  { id: 'k1', series: 'K', name: 'K1 Machine', price: 500000, daily: 70000, image: 'https://i.postimg.cc/9QNYcgfV/IMG-20260909-WA0103(1).jpg', isFirstInSeries: true },
+  { id: 'k2', series: 'K', name: 'K2 Machine', price: 850000, daily: 125000, image: 'https://i.postimg.cc/1XJNJ4nF/IMG-20260909-WA0102.jpg', isFirstInSeries: false },
+  { id: 'k3', series: 'K', name: 'K3 Machine', price: 1500000, daily: 210000, image: 'https://i.postimg.cc/T17pnSFf/IMG-20260909-WA0101.jpg', isFirstInSeries: false },
+  { id: 'k4', series: 'K', name: 'K4 Machine', price: 3000000, daily: 500000, image: 'https://i.postimg.cc/qRpRS4dc/IMG-20260909-WA0099.jpg', isFirstInSeries: false },
+  { id: 'j1', series: 'J', name: 'J1 Machine', price: 300000, daily: 57500, image: 'https://i.postimg.cc/1tKH1mVz/IMG-20260909-WA0114.jpg', isFirstInSeries: true },
+  { id: 'j2', series: 'J', name: 'J2 Machine', price: 500000, daily: 100000, image: 'https://i.postimg.cc/wjsQTcR4/IMG-20260909-WA0111.jpg', isFirstInSeries: false },
+  { id: 'j3', series: 'J', name: 'J3 Machine', price: 1000000, daily: 250000, image: 'https://i.postimg.cc/D0ZqVqKc/IMG-20260909-WA0110.jpg', isFirstInSeries: false },
+  { id: 'j4', series: 'J', name: 'J4 Machine', price: 3000000, daily: 750000, image: 'https://i.postimg.cc/pdsYL2Jk/IMG-20260909-WA0130.jpg', isFirstInSeries: false },
+  { id: 'vip1', series: 'VIP', name: 'VIP 1 Machine', price: 500000, daily: 125000, image: 'https://i.postimg.cc/YS0L8QQ4/IMG-20260909-WA0131.jpg', isFirstInSeries: false, requiredInvestors: 3 },
+  { id: 'vip2', series: 'VIP', name: 'VIP 2 Machine', price: 1000000, daily: 270000, image: 'https://i.postimg.cc/t4CsCFSv/IMG-20260909-WA0108.jpg', isFirstInSeries: false, requiredInvestors: 10 },
+  { id: 'vip3', series: 'VIP', name: 'VIP 3 Machine', price: 4000000, daily: 1400000, image: 'https://i.postimg.cc/PJTtVk09/IMG-20260909-WA0129.jpg', isFirstInSeries: false, requiredInvestors: 20 },
+  { id: 'vip4', series: 'VIP', name: 'VIP 4 Machine', price: 7500000, daily: 2400000, image: 'https://i.postimg.cc/YqXpRZ8c/IMG-20260909-WA0123.jpg', isFirstInSeries: false, requiredInvestors: 50 }
+];
+
+    
     let currentUserId = '';
     let currentUserPhone = '';
     let balance = 5000, inviteCode = '', teamCount = 0, vipTier = 'None';
@@ -2429,7 +2438,8 @@ if (viewName === 'chats') renderUserChat();
 
     function setSeries(s) {
       curS = s;
-      ['ALL', 'B', 'R', 'K', 'J', 'VIP'].forEach(series => {
+      ['ALL', 'B', 'H', 'R', 'K', 'J', 'VIP'].forEach(series => {
+      
         let btn = document.getElementById('btnSeries' + series);
         if (btn) {
           btn.style.background = (series === s) ? '#10b981' : '#1e293b';
@@ -2446,11 +2456,16 @@ if (viewName === 'chats') renderUserChat();
       grid.innerHTML = filtered.map(m => {
         let duration = seriesDurations[m.series] || 30;
         let totalIncome = m.daily * duration;
+        let badgeHtml = (m.series === 'H') ? `<div style="font-size: 9px; color: #10b981; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Daily Withdrawal</div>` : '';    
         return `
           <div onclick="openMachineDetail('${m.id}')" style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); display:flex; gap:14px; align-items:center; cursor:pointer;">
             <img src="${m.image}" alt="${m.name}" style="width:110px; height:85px; object-fit:cover; border-radius:8px; flex-shrink:0;">
             <div style="flex:1;">
-              <div style="font-weight:800; font-size:13px; margin-bottom:3px;">${m.name}</div>
+            <div style="font-size: 10px; color: var(--mut);">
+               ${badgeHtml}
+               Price: UGX ${Number(m.price).toLocaleString()}
+              </div>
+             <div style="font-weight:800; font-size:13px; margin-bottom:3px;">${m.name}</div>
               <div style="font-size:10px; color:var(--mut);">Price: UGX ${m.price.toLocaleString()}</div>
               <div style="font-size:10px; color:var(--accent);">Daily: UGX ${m.daily.toLocaleString()}</div>
               <div style="font-size:10px; color:var(--mut);">Duration: ${duration} Days</div>
@@ -2744,30 +2759,47 @@ if (tab.includes('deposit') || tab.includes('withdrawal')) {
         let accrued = m.accrued || 0;
         let totalCycle = m.totalCycle || (m.daily * daysTotal) || 0;
         let isCompleted = daysCounted >= daysTotal || m.claimed;
+       let now = Date.now();
+       let lastClaim = m.lastClaimTime || m.purchaseDate || now;
+       let hoursPassed = (now - lastClaim) / (1000 * 60 * 60);
+       let isHSeries = (m.series === 'H');
+  
+return `
+<div style="background: #1e293b; padding: 14px; margin-bottom: 12px; border-radius: 8px;">
+    <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px;">
+        <span>${m.name || 'Machine'}</span> ${isCompleted ? '(Completed)' : ''}
+    </div>
+    <div style="display: flex; justify-content: space-between;">
+        <span>Days Counted:</span>
+        <span style="color: #f8fafc; font-weight: 600;">${daysCounted} / ${daysTotal} days</span>
+    </div>
+    <div style="display: flex; justify-content: space-between;">
+        <span>Days Left:</span>
+        <span style="color: #f8fafc; font-weight: 600;">${daysLeft} days</span>
+    </div>
+    <div style="display: flex; justify-content: space-between;">
+        <span>Accrued Earnings:</span>
+        <span style="color: #10b981; font-weight: 600;">UGX ${accrued}</span>
+    </div>
+    <div style="display: flex; justify-content: space-between;">
+        <span>Total Cycle Income:</span>
+        <span style="color: #f8fafc; font-weight: 600;">UGX ${totalCycle}</span>
+    </div>
 
-        return `
-          <div style="background: #1e293b; padding: 14px; margin-bottom: 10px; border-radius: 10px; font-size: 13px; color: #f8fafc; border: 1px solid rgba(255,255,255,0.05);">
-            <div style="font-weight: 700; font-size: 14px; margin-bottom: 10px; display: flex; justify-content: space-between;">
-              <span>${m.name || 'Machine'} ${isCompleted ? '(Completed)' : ''}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; color: #94a3b8; font-size: 12px; margin-bottom: 6px;">
-              <span>Days Counted:</span>
-              <span style="color: #f8fafc; font-weight: 600;">${daysCounted} / ${daysTotal} days</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; color: #94a3b8; font-size: 12px; margin-bottom: 6px;">
-              <span>Days Left:</span>
-              <span style="color: #f8fafc; font-weight: 600;">${daysLeft} days</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; color: #94a3b8; font-size: 12px; margin-bottom: 6px;">
-              <span>Accrued Earnings:</span>
-              <span style="color: #10b981; font-weight: 600;">UGX ${accrued.toLocaleString()}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; color: #94a3b8; font-size: 12px;">
-              <span>Total Cycle Income:</span>
-              <span style="color: #f8fafc; font-weight: 600;">UGX ${totalCycle.toLocaleString()}</span>
-            </div>
-          </div>
-        `;
+    <!-- H-Series Payout Button -->
+    <div style="margin-top: 10px;">
+        ${isHSeries ? (
+            hoursPassed >= 24 
+            ? `<button onclick="claimDailyIncome('${m.id}')" class="btn" style="width: 100%; background: #10b981; color: #fff; padding: 8px;">Receive Income</button>`
+            : `<button class="btn" style="width: 100%; background: var(--mut); color: #fff; padding: 8px;" disabled>Available in ${Math.ceil(24 - hoursPassed)}h</button>`
+        ) : (
+            isCompleted ? `<button class="btn" style="width: 100%;">Collect Total</button>` : `<button class="btn" style="width: 100%; background: var(--mut);" disabled>Running...</button>`
+        )}
+    </div>
+</div>
+`;
+
+
       }).join('');
     }
   } else {
@@ -2808,6 +2840,37 @@ if (tab.includes('deposit') || tab.includes('withdrawal')) {
   }
 
   container.innerHTML = summaryHtml + contentHtml;
+}
+ function claimDailyIncome(machineId) {
+    let machine = (window.activeMachines || activeMachines).find(m => m.id === machineId);
+    if (!machine) {
+        alert("Machine not found!");
+        return;
+    }
+
+    let now = Date.now();
+    let lastClaim = machine.lastClaimTime || machine.purchaseDate || now;
+    let hoursPassed = (now - lastClaim) / (1000 * 60 * 60);
+
+    if (hoursPassed < 24) {
+        alert("Income not ready yet! Please wait for the 24-hour cycle to complete.");
+        return;
+    }
+
+    let dailyAmount = Number(machine.daily) || 0;
+    
+    if (typeof userBalance !== 'undefined') {
+        userBalance += dailyAmount;
+    } else if (typeof window.userBalance !== 'undefined') {
+        window.userBalance += dailyAmount;
+    }
+
+    machine.lastClaimTime = now;
+
+    if (typeof saveUserData === 'function') saveUserData();
+    if (typeof updateUI === 'function') updateUI();
+
+    alert(`Successfully claimed UGX ${dailyAmount.toLocaleString()} daily income!`);
 }
 
     async function renderTeamView() {
