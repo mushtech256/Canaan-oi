@@ -1417,19 +1417,19 @@ async function loadAdminDashboardData() {
         if (w.status === 'Succeed' || w.status === 'Approved') {
           overallTotalWithdrawals += wAmount;
         } else if (w.status === 'Pending' || w.status === 'Processing') {
-          pendingWithdrawalsHtml += `
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:12px; margin-bottom:8px; border-radius:8px;">
-              <div>
-                <b>${uData.phone || 'User'}</b><br>
-                <span style="color:#ef4444; font-weight:700;">UGX ${wAmount.toLocaleString()}</span><br>
-                <small style="color:var(--mut);">Method: ${w.method || 'N/A'}</small>
-              </div>
-              <div style="display:flex; gap:6px;">
-    <button class="btn btn-sm btn-success" onclick="adminApproveWithdrawal('${userId}', ${wIndex})">Approve</button>
-    <button class="btn btn-sm btn-danger" onclick="adminRejectWithdrawal('${userId}', ${wIndex})">Reject</button>
-</div>
-
-            </div>`;
+          pendingWithdrawalsHTML += `
+<div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+  <div>
+    <b>📞 ${w.phone || uData.phone || 'User'}</b><br>
+    <span style="color: var(--warning); font-size: 13px;">👤 Name: ${w.accountName || w.fullName || 'N/A'}</span><br>
+    <span style="color: #ef4444; font-weight: 700;">💰 UGX ${wAmount.toLocaleString()}</span><br>
+    <small style="color: var(--mut);">Method: ${w.method || w.network || 'N/A'}</small>
+  </div>
+  <div style="display: flex; gap: 6px;">
+    <button class="btn btn-sm btn-success" onclick="adminApproveWithdrawal('${userId}', '${wIndex}')">Approve</button>
+    <button class="btn btn-sm btn-danger" onclick="adminRejectWithdrawal('${userId}', '${wIndex}')">Reject</button>
+  </div>
+</div>`;
         }
       });
 
@@ -1508,9 +1508,14 @@ async function loadAdminDashboardData() {
       if (el) el.innerHTML = pendingWdHtml;
     });
     
-  } catch (err) {
-    console.error("Error loading admin stats:", err);
-  }
+} catch (err) {
+  console.error("Error loading admin stats:", err);
+      // Fallback UI in case of network or quota failure
+  ['adminPendingDepositsList', 'pendingDepositsList', 'adminPendingDepEl', 'adminPendingWithdrawalsList', 'pendingWithdrawalsList', 'adminPendingWdEl'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<p style="color:#ef4444; font-size:12px;">Failed to load queue. Check connection.</p>`;
+  });
+}
 }
 
 // Check user status and lookup details
@@ -2560,8 +2565,8 @@ if (viewName === 'chats') renderUserChat();
       calcEl.innerHTML = `Fee (10%): UGX ${(val * 0.10).toLocaleString()} | <b>Net: UGX ${(val * 0.90).toLocaleString()}</b>`;
     }
 
-    function confirmWithdraw() {
-  // 1. Strict local block: check if user has an active machine flag or deposit flag in local memory
+  function confirmWithdraw() {
+  // 1. Strict check on active machines or deposits
   const hasMachines = (Array.isArray(window.userMachines) && window.userMachines.length > 0) || window.hasActiveMachine === true;
   const hasDeps = (Array.isArray(deposits) && deposits.some(d => {
     let s = (d.status || '').toLowerCase();
@@ -2570,11 +2575,15 @@ if (viewName === 'chats') renderUserChat();
 
   if (!hasMachines && !hasDeps) {
     alert('⚠️ Withdrawal restricted! You must purchase a machine or make an approved deposit before you can withdraw.');
-    return; // Stops execution immediately!
+    return;
   }
 
-  // 2. Validate withdrawal amount
+  // 2. Grab inputs precisely from your form fields
   let val = parseFloat(document.getElementById('withdrawAmountInput').value);
+  let network = document.getElementById('withdrawNetworkInput').value || 'Mobile Money';
+  let phone = document.getElementById('withdrawPhoneInput').value || 'N/A';
+  let accountName = document.getElementById('withdrawNameInput').value || 'No Name Provided';
+
   if (isNaN(val) || val < 5000) {
     alert('⚠️ Minimum withdrawal is UGX 5,000');
     return;
@@ -2585,9 +2594,14 @@ if (viewName === 'chats') renderUserChat();
   }
 
   balance = Number(balance) - Number(val);
+  
+  // 3. Push complete details to withdrawals array
   withdrawals.unshift({
     desc: 'Withdrawal', 
-    amt: '-UGX ' + val.toLocaleString(),
+    amount: val,
+    phone: phone,
+    network: network,
+    accountName: accountName,
     status: 'Pending', 
     timestamp: new Date().getTime()
   });
@@ -2595,9 +2609,8 @@ if (viewName === 'chats') renderUserChat();
   closeModal('withdrawModal');
   saveUserData();
   updateUI();
-  alert('Withdrawal request submitted.');
+  alert('Withdrawal request of UGX ' + val.toLocaleString() + ' submitted successfully!');
 }
-
 
     function cancelWithdrawal(index) {
   if (!Array.isArray(withdrawals) || !withdrawals[index]) return;
