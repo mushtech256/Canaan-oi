@@ -1382,7 +1382,6 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
     renderTeamView();
   }
 }
-
 async function loadAdminDashboardData() {
   try {
     const { collection, getDocs } = window.firebaseFns;
@@ -1393,9 +1392,10 @@ async function loadAdminDashboardData() {
     let dormantUsers = 0;
     let overallTotalDeposits = 0;
     let overallTotalWithdrawals = 0;
-
+    
     let pendingDepositsHtml = "";
-    let pendingWithdrawalsHtml = "";
+    let pendingWithdrawalsHtml = ""; // Ensure lowercase 'html' to match your render block
+    
 
     querySnapshot.forEach((docSnap) => {
       totalUsers++;
@@ -1416,9 +1416,8 @@ async function loadAdminDashboardData() {
         let wAmount = Number(w.rawAmount || w.amount || w.rawAmt || w.amt) || 0;
         if (w.status === 'Succeed' || w.status === 'Approved') {
           overallTotalWithdrawals += wAmount;
-        } else if (w.status === 'Pending' || w.status === 'Processing') {
-          pendingWithdrawalsHTML += `
-<div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+                } else if (w.status === 'Pending' || w.status === 'Processing') {
+          pendingWithdrawalsHTML += `<div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
   <div>
     <b>📞 ${w.phone || uData.phone || 'User'}</b><br>
     <span style="color: var(--warning); font-size: 13px;">👤 Name: ${w.accountName || w.fullName || 'N/A'}</span><br>
