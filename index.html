@@ -624,7 +624,7 @@
       <div style="margin-bottom: 14px;">
         <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--text);">📋 Pending Withdrawal Approvals</div>
         <div id="adminPendingWithdrawalsList" style="max-height: 140px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px;">
-          <div style="font-size: 11px; color: var(--mut); text-align: center; padding: 10px;">Loading queue...</div>
+         <div style="font-size: 11px; color: var(--mut); text-align: center; padding: 10px;">Loading queue...</div>
         </div>
       </div>
 
@@ -1254,6 +1254,7 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
           return;
         }
 
+        
         let userCredential = await createUserWithEmailAndPassword(window.firebaseAuth, email, password);
         currentUserId = userCredential.user.uid;
         inviteCode = generateUniqueRefCode();
@@ -1641,7 +1642,6 @@ async function adminSendBroadcast() {
     document.getElementById('broadcastBanner').style.display = 'block';
   } catch (e) { alert('Error broadcasting: ' + e.message); }
 }
-
 // Approve Withdrawal
 async function adminApproveWithdrawal(targetUserId, wIndex) {
   try {
@@ -2189,7 +2189,6 @@ window.proceedToDepositStep2 = function() {
       el.innerText = el.innerText.replace("Merchant Payment Info", "Payment Info");
     }
   });
-
   // Replace 'MERCHANT NUMBER' label text with 'PHONE NUMBER'
   const labels = document.querySelectorAll("#depositStep2 span, #depositStep2 label");
   labels.forEach(lbl => {
@@ -2562,36 +2561,35 @@ if (viewName === 'chats') renderUserChat();
     }
 
     function confirmWithdraw() {
-          let hasApprovedDeposit = Array.isArray(deposits) && deposits.some(d => {
+  // 1. Verify if user has at least one active machine or has made a valid deposit
+  let hasActiveMachines = Array.isArray(window.userMachines) && window.userMachines.length > 0;
+  let hasDeposited = Array.isArray(window.deposits) && window.deposits.some(d => {
     let s = (d.status || '').toLowerCase();
-    return s === 'approved' || s === 'success' || s === 'successful' || s === 'succeed';
+    return s === 'approved' || s === 'success' || s === 'completed';
   });
 
-  let hasActiveMachines = (Array.isArray(activeMachines) && activeMachines.length > 0) || 
-                          (Array.isArray(investmentsList) && investmentsList.length > 0);
-
-  if ((!hasDeposited && !hasApprovedDeposit) || (!hasPurchased && !hasActiveMachines)) {
-    alert('⚠️ Withdrawal restricted! Make a deposit and rent at least one machine before withdrawing.');
+  if (!hasActiveMachines && !hasDeposited) {
+    alert('⚠️ Withdrawal restricted! You must purchase a machine or make an approved deposit before withdrawing.');
     return;
   }
-  
-  
 
-      let val = parseFloat(document.getElementById('withdrawAmt').value);
-      if (isNaN(val) || val < 5000) { alert('⚠️ Minimum withdrawal amount is UGX 5,000.'); return; }
-      if (val > balance) return alert('Insufficient balance.');
-      
-      balance = Number(balance) - Number(val);
-      withdrawals.unshift({ 
-        desc: 'Withdrawal', amt: '-UGX ' + val.toLocaleString(), rawAmount: val,
-        status: 'Pending', timestamp: new Date().getTime()
-      });
-      
-      closeModal('withdrawModal');
-      saveUserData();
-      updateUI();
-      alert('Withdrawal request submitted.');
-    }
+  // 2. Validate withdrawal amount
+  let val = parseFloat(document.getElementById('withdrawAmountInput').value);
+  if (isNaN(val) || val < 5000) return alert('⚠️ Minimum withdrawal is UGX 5,000');
+  if (val > balance) return alert('Insufficent balance!');
+
+  balance = Number(balance) - Number(val);
+  withdrawals.unshift({
+    desc: 'Withdrawal', amt: '-UGX ' + val.toLocaleString(),
+    status: 'Pending', timestamp: new Date().getTime()
+  });
+
+  closeModal('withdrawModal');
+  saveUserData();
+  updateUI();
+  alert('Withdrawal request submitted.');
+}
+
 
     function cancelWithdrawal(index) {
   if (!Array.isArray(withdrawals) || !withdrawals[index]) return;
@@ -2624,8 +2622,7 @@ if (viewName === 'chats') renderUserChat();
   
   alert(`Withdrawal cancelled. UGX ${refundAmount.toLocaleString()} refunded to your balance.`);
 }
-
-    function claimDailyReward() {
+function claimDailyReward() {
       let today = new Date().toDateString();
       if (lastRewardDate === today) return alert('Already claimed today!');
       lastRewardDate = today;
@@ -3055,7 +3052,7 @@ async function sendUserMessage() {
       sender: currentUser,
       targetUser: currentUser,
       text: text,
-      timestamp: Date.now(),
+        timestamp: Date.now(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isAdmin: false,
       isBroadcast: false
