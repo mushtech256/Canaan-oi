@@ -473,6 +473,16 @@
 
   </div>
 </div>
+<!-- Dedicated Admin User Machines Modal -->
+<div id="adminUserMachinesModal" class="modal" style="display: none; align-items: center; justify-content: center; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999;">
+    <div class="modal-content" style="background: var(--bg); padding: 20px; border-radius: 12px; max-width: 400px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 id="adminModalMachineTitle" style="color: var(--accent); font-size: 15px; font-weight: 700;">User Machines</h3>
+            <span onclick="document.getElementById('adminUserMachinesModal').style.display='none'" style="cursor: pointer; color: var(--mut); font-size: 18px; font-weight: bold;">&times;</span>
+        </div>
+        <div id="adminUserMachinesModalBody"></div>
+    </div>
+</div>
 
   <!-- ADMIN PANEL MODAL -->
   <div id="adminModal" class="modal">
@@ -510,6 +520,11 @@
     <div style="font-size: 10px; color: var(--mut); margin-top: 2px;">Weekly: <span id="adminStatWeeklyWithdrawals">UGX 0</span></div>
   </div>
 </div>
+<!-- Container for Active Users List -->
+<div style="margin-top: 15px; max-height: 300px; overflow-y: auto;">
+    <div id="adminActiveUsersList"></div>
+</div>
+
 <div style="background: var(--card); padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px solid rgba(255,255,255,0.05);">
   <h4 style="color: var(--accent); margin-bottom: 10px; font-size: 15px;">💳 Manual Account Crediting</h4>
   <p style="color: var(--mut); font-size: 12px; margin-bottom: 10px;">Credit a user's balance directly if they experienced deposit issues.</p>
@@ -1389,32 +1404,69 @@ async function loadAdminDashboardData() {
     let overallTotalWithdrawals = 0;
     
     let pendingDepositsHtml = "";
-    let pendingWithdrawalsHtml = ""; // Ensure lowercase 'html' to match your render block
-    
+    let pendingWithdrawalsHtml = "";
+    let activeUsersHtml = "";
+    let dormantUsersHtml = "";
 
     querySnapshot.forEach((docSnap) => {
       totalUsers++;
       const uData = docSnap.data() || {};
       const userId = docSnap.id;
+      const phone = uData.phone || "No Phone";
+      const balance = Number(uData.balance || 0);
 
-      // Active vs Dormant calculation
-      const hasActivity = (uData.activeMachines && uData.activeMachines.length > 0) || (uData.balance > 0);
+      // Calculate User's Total Approved Deposits
+      const userDeposits = Array.isArray(uData.deposits) ? uData.deposits : [];
+      let userTotalDeposits = 0;
+      userDeposits.forEach((dep) => {
+        let dAmt = Number(dep.rawAmount || dep.amount || dep.rawAmt || dep.amt) || 0;
+        if (dep.status === 'Approved' || dep.status === 'Succeed') {
+          overallTotalDeposits += dAmt;
+          userTotalDeposits += dAmt;
+        }
+      });
+
+      // Calculate User's Total Approved Withdrawals
+      const userWithdrawals = Array.isArray(uData.withdrawals) ? uData.withdrawals : [];
+      let userTotalWithdrawals = 0;
+      userWithdrawals.forEach((w) => {
+        let wAmount = Number(w.rawAmount || w.amount || w.rawAmt || w.amt) || 0;
+        if (w.status === 'Succeed' || w.status === 'Approved') {
+          overallTotalWithdrawals += wAmount;
+          userTotalWithdrawals += wAmount;
+        }
+      });
+
+      // Machine holdings check
+      const machines = Array.isArray(uData.machines) || Array.isArray(uData.activeMachines) ? (uData.machines || uData.activeMachines) : [];
+
+      // Active vs Dormant logic
+      const hasActivity = userTotalDeposits > 0 || balance > 0 || machines.length > 0;
+
       if (hasActivity) {
         activeUsers++;
+        activeUsersHtml += `
+          <div onclick="openUserMachinesModal('${userId}')" style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 13px;">
+              <span>📱 ${phone}</span>
+              <span style="color: var(--accent);">Bal: UGX ${balance.toLocaleString()}</span>
+            </div>
+            <div style="font-size: 11px; color: var(--mut); margin-top: 4px; display: flex; justify-content: space-between;">
+              <span>📥 Dep: UGX ${userTotalDeposits.toLocaleString()}</span>
+              <span>📤 With: UGX ${userTotalWithdrawals.toLocaleString()}</span>
+              <span>⚙️ Machines: ${machines.length}</span>
+            </div>
+          </div>
+        `;
       } else {
         dormantUsers++;
       }
 
-      // 1. Safely render pending withdrawals
-      const userWithdrawals = Array.isArray(uData.withdrawals) ? uData.withdrawals : [];
+      // Existing Pending Withdrawals processing...
       userWithdrawals.forEach((w, wIndex) => {
         let wAmount = Number(w.rawAmount || w.amount || w.rawAmt || w.amt) || 0;
-        if (w.status === 'Succeed' || w.status === 'Approved') {
-          overallTotalWithdrawals += wAmount;
-                 } else if (w.status === 'Pending' || w.status === 'Processing') {
-          // Calculate net amount after 10% deduction
+        if (w.status === 'Pending' || w.status === 'Processing') {
           let netPayout = Math.round(wAmount * 0.9);
-
           pendingWithdrawalsHtml += `<div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
   <div>
     <b>📞 ${w.phone || uData.phone || 'User'}</b><br>
@@ -1431,17 +1483,13 @@ async function loadAdminDashboardData() {
         }       
       });
 
-                 // 2. Safely render pending deposits (Checking both pendingDeposits and deposits arrays)
+      // Existing Pending Deposits processing...
       let allPending = [];
-
-      // Check uData.pendingDeposits array
       if (Array.isArray(uData.pendingDeposits)) {
         uData.pendingDeposits.forEach((dep, idx) => {
           allPending.push({ ...dep, originalIndex: idx, sourceArray: 'pendingDeposits' });
         });
       }
-
-      // Also check uData.deposits array for items with 'Pending' status
       if (Array.isArray(uData.deposits)) {
         uData.deposits.forEach((dep, idx) => {
           if (dep.status === 'Pending' || dep.status === 'pending' || dep.status === 'Processing') {
@@ -1450,7 +1498,6 @@ async function loadAdminDashboardData() {
         });
       }
 
-      // Render all discovered pending deposits
       allPending.forEach((dep) => {
         let dAmount = Number(dep.amount || dep.rawAmount || dep.rawAmt || dep.amt || dep.value || dep.depositAmount || dep.topup || dep.sum || dep.price) || 0;
         if (dAmount === 0) {
@@ -1476,14 +1523,6 @@ async function loadAdminDashboardData() {
           </div>
         </div>`;
       });
-       
-      // Count completed deposits for platform totals
-      const userDeposits = Array.isArray(uData.deposits) ? uData.deposits : [];
-      userDeposits.forEach((dep) => {
-        if (dep.status === 'Approved' || dep.status === 'Succeed') {
-          overallTotalDeposits += Number(dep.rawAmount || dep.amount || dep.rawAmt || dep.amt) || 0;
-        }
-      });
     });
     
     // Update Admin Stats Elements
@@ -1491,11 +1530,14 @@ async function loadAdminDashboardData() {
     if (document.getElementById('adminStatActiveUsers')) document.getElementById('adminStatActiveUsers').innerText = activeUsers;
     if (document.getElementById('adminStatDormantUsers')) document.getElementById('adminStatDormantUsers').innerText = dormantUsers;
 
-            // Render Lists
+    // Render Lists
     const pendingDepHtml = pendingDepositsHtml || '<p style="color:var(--mut); font-size:12px;">No pending deposits.</p>';
     const pendingWdHtml = pendingWithdrawalsHtml || '<p style="color:var(--mut); font-size:12px;">No pending withdrawals.</p>';
+    
+    const activeUsersFinalHtml = activeUsersHtml || '<p style="color:var(--mut); text-align:center; font-size:12px;">No active users found.</p>';
+    const dormantUsersFinalHtml = `<p style="color:var(--mut); text-align:center; font-size:12px;">No data found</p>`;
 
-    // Target any possible ID used in the HTML layout
+    // Target elements in the DOM
     ['adminPendingDepositsList', 'pendingDepositsList', 'adminPendingDepEl'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = pendingDepHtml;
@@ -1505,12 +1547,18 @@ async function loadAdminDashboardData() {
       const el = document.getElementById(id);
       if (el) el.innerHTML = pendingWdHtml;
     });
+
+    const activeContainer = document.getElementById('adminActiveUsersList');
+    if (activeContainer) activeContainer.innerHTML = activeUsersFinalHtml;
+
+    const dormantContainer = document.getElementById('adminDormantUsersList');
+    if (dormantContainer) dormantContainer.innerHTML = dormantUsersFinalHtml;
+
     const creditCardEl = document.getElementById('adminManualCreditCard');
-if (creditCardEl) creditCardEl.style.display = 'block';
+    if (creditCardEl) creditCardEl.style.display = 'block';
 
 } catch (err) {
   console.error("Error loading admin stats:", err);
-      // Fallback UI in case of network or quota failure
   ['adminPendingDepositsList', 'pendingDepositsList', 'adminPendingDepEl', 'adminPendingWithdrawalsList', 'pendingWithdrawalsList', 'adminPendingWdEl'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = `<p style="color:#ef4444; font-size:12px;">Failed to load queue. Check connection.</p>`;
@@ -1518,159 +1566,47 @@ if (creditCardEl) creditCardEl.style.display = 'block';
 }
 }
 
-// Check user status and lookup details
-async function adminCheckUserStatus() {
-  let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
-  let resEl = document.getElementById('adminUserLookupResult');
-  if (!rawPhone.match(/^07[0-9]{8}$/)) {
-    resEl.innerText = "⚠️ Please enter a valid 10-digit phone number.";
-    return;
-  }
-  try {
-    const { collection, query, where, getDocs } = window.firebaseFns;
-    const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      resEl.innerText = "❌ User not found.";
-    } else {
-      snap.forEach(d => {
-        let u = d.data();
-        resEl.innerHTML = `
-          <b>User:</b> ${u.phone}<br>
-          <b>Email:</b> ${u.email}<br>
-          <b>Status:</b> ${u.isBanned ? '<span style="color:var(--danger)">BANNED</span>' : '<span style="color:var(--accent)">ACTIVE</span>'}<br>
-          <b>Apology Message:</b> ${u.apologyMessage || 'None'}
-        `;
-      });
-    }
-  } catch (e) { resEl.innerText = "Error: " + e.message; }
-}
-
-// Ban or unban user via admin phone input
-async function adminBanUserAction() {
-  let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
-  if (!rawPhone.match(/^07[0-9]{8}$/)) {
-    alert("⚠️ Please enter a valid 10-digit phone number.");
-    return;
-  }
-  try {
-    const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
-    const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      alert("❌ User not found.");
-    } else {
-      snap.forEach(async (d) => {
-        let u = d.data();
-        let newBanState = !u.isBanned;
-        await updateDoc(doc(window.firebaseDb, "users", d.id), { isBanned: newBanState });
-        alert(`User status updated to: ${newBanState ? 'BANNED' : 'ACTIVE'}`);
-        adminCheckUserStatus();
-        loadAdminDashboardData();
-      });
-    }
-  } catch (e) { alert("Error: " + e.message); }
-}
-
-// Ban/Unban helper by User ID
-async function adminToggleBanById(userId, currentState) {
-  try {
-    const { doc, updateDoc } = window.firebaseFns;
-    await updateDoc(doc(window.firebaseDb, "users", userId), { isBanned: !currentState });
-    alert(`User status updated to: ${!currentState ? 'BANNED' : 'ACTIVE'}`);
-    loadAdminDashboardData();
-  } catch (e) { alert("Error: " + e.message); }
-}
-
-// Reset password and display the new password to admin
-async function adminResetUserPassword() {
-  let rawPhone = document.getElementById('adminBanPhoneInput').value.trim();
-  if (!rawPhone.match(/^07[0-9]{8}$/)) {
-    alert("⚠️ Please enter a valid 10-digit phone number.");
-    return;
-  }
-  let newPass = prompt("Enter new password for " + rawPhone + ":");
-  if (!newPass) return;
-
-  try {
-    const { collection, query, where, getDocs, updateDoc, doc, sendPasswordResetEmail } = window.firebaseFns;
-    const q = query(collection(window.firebaseDb, "users"), where("phone", "==", rawPhone));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      alert("❌ User not found.");
-    } else {
-      snap.forEach(async (d) => {
-        let u = d.data();
-        await updateDoc(doc(window.firebaseDb, "users", d.id), { password: newPass });
-        if (u.email) {
-          try { await sendPasswordResetEmail(window.firebaseAuth, u.email); } catch(err){}
+async function openUserMachinesModal(userId) {
+    try {
+        const { doc, getDoc } = window.firebaseFns;
+        const userDoc = await getDoc(doc(window.firebaseDb, "users", userId));
+        if (!userDoc.exists()) return alert("User not found!");
+        
+        const data = userDoc.data();
+        const machines = Array.isArray(data.machines) || Array.isArray(data.activeMachines) ? (data.machines || data.activeMachines) : [];
+        
+        let machineDetailsHtml = `<div style="color: var(--text);">`;
+        
+        if (machines.length === 0) {
+            machineDetailsHtml += `<p style="color: var(--mut); font-size: 13px; text-align: center; padding: 20px;">This user has not purchased any machines yet.</p>`;
+        } else {
+            machines.forEach((m, idx) => {
+                machineDetailsHtml += `
+                    <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <b>#${idx + 1} - ${m.name || m.title || 'Machine'}</b><br>
+                        <span style="color: var(--mut);">Price: UGX ${Number(m.price || 0).toLocaleString()}</span><br>
+                        <span style="color: #10b981;">Daily Yield: UGX ${Number(m.dailyYield || m.yield || 0).toLocaleString()}</span>
+                    </div>
+                `;
+            });
         }
-        alert(`✅ Password successfully reset to: ${newPass}\n\nProvide this password to the user.`);
-      });
+        machineDetailsHtml += `</div>`;
+        
+        // Target the new independent admin modal
+        const titleEl = document.getElementById('adminModalMachineTitle');
+        if (titleEl) titleEl.innerText = `Machines for: ${data.phone || userId} (${machines.length})`;
+        
+        const bodyEl = document.getElementById('adminUserMachinesModalBody');
+        if (bodyEl) bodyEl.innerHTML = machineDetailsHtml;
+        
+        const modalEl = document.getElementById('adminUserMachinesModal');
+        if (modalEl) modalEl.style.display = 'flex';
+        
+    } catch (e) {
+        console.error("Error opening user machines:", e);
+        alert("Failed to load user machines.");
     }
-  } catch (e) { alert("Error: " + e.message); }
 }
-
-// Admin Manual Credit Function
-async function adminManualCreditUser() {
-  const phoneInput = document.getElementById('adminCreditPhone');
-  const amountInput = document.getElementById('adminCreditAmount');
-  
-  if (!phoneInput || !amountInput) return;
-  
-  let phone = phoneInput.value.trim();
-  let amountToAdd = Number(amountInput.value);
-
-  if (!phone || isNaN(amountToAdd) || amountToAdd <= 0) {
-    alert("Please enter a valid phone number and an amount greater than 0.");
-    return;
-  }
-
-  try {
-    const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
-    const usersRef = collection(window.firebaseDb, "users");
-    const q = query(usersRef, where("phone", "==", phone));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      alert("No user found with that phone number.");
-      return;
-    }
-
-    const userDocSnap = querySnapshot.docs[0];
-    const userData = userDocSnap.data();
-    const userId = userDocSnap.id;
-
-    const currentBalance = Number(userData.balance) || 0;
-    const newBalance = currentBalance + amountToAdd;
-
-    let deposits = Array.isArray(userData.deposits) ? [...userData.deposits] : [];
-    deposits.push({
-      amount: amountToAdd,
-      rawAmount: amountToAdd,
-      status: 'Approved',
-      method: 'Admin Manual Credit',
-      date: new Date().toISOString()
-    });
-
-    const targetUserRef = doc(window.firebaseDb, "users", userId);
-    await updateDoc(targetUserRef, {
-      balance: newBalance,
-      deposits: deposits
-    });
-
-    alert(`Successfully credited UGX ${amountToAdd.toLocaleString()} to user ${phone}. New balance: UGX ${newBalance.toLocaleString()}`);
-    
-    phoneInput.value = '';
-    amountInput.value = '';
-    loadAdminDashboardData();
-
-  } catch (err) {
-    console.error("Error crediting user:", err);
-    alert("Failed to credit user account. Check console for details.");
-  }
-}
-
 
 // Direct password reset by User ID
 async function adminDirectResetPassword(userId, phone) {
