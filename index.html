@@ -1416,12 +1416,16 @@ async function loadAdminDashboardData() {
         let wAmount = Number(w.rawAmount || w.amount || w.rawAmt || w.amt) || 0;
         if (w.status === 'Succeed' || w.status === 'Approved') {
           overallTotalWithdrawals += wAmount;
-                } else if (w.status === 'Pending' || w.status === 'Processing') {
+                 } else if (w.status === 'Pending' || w.status === 'Processing') {
+          // Calculate net amount after 10% deduction
+          let netPayout = Math.round(wAmount * 0.9);
+
           pendingWithdrawalsHtml += `<div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
   <div>
     <b>📞 ${w.phone || uData.phone || 'User'}</b><br>
     <span style="color: var(--warning); font-size: 13px;">👤 Name: ${w.accountName || w.fullName || 'N/A'}</span><br>
-    <span style="color: #ef4444; font-weight: 700;">💰 UGX ${wAmount.toLocaleString()}</span><br>
+    <span style="color: #ef4444; font-weight: 700;">💰 Requested: UGX ${wAmount.toLocaleString()}</span><br>
+    <span style="color: #10b981; font-weight: 700; font-size: 14px;">💸 Send to user: UGX ${netPayout.toLocaleString()}</span><br>
     <small style="color: var(--mut);">Method: ${w.method || w.network || 'N/A'}</small>
   </div>
   <div style="display: flex; gap: 6px;">
@@ -1429,7 +1433,7 @@ async function loadAdminDashboardData() {
     <button class="btn btn-sm btn-danger" onclick="adminRejectWithdrawal('${userId}', '${wIndex}')">Reject</button>
   </div>
 </div>`;
-        }
+        }       
       });
 
                  // 2. Safely render pending deposits (Checking both pendingDeposits and deposits arrays)
