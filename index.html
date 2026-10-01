@@ -2561,16 +2561,16 @@ if (viewName === 'chats') renderUserChat();
     }
 
     function confirmWithdraw() {
-  // 1. Force strict check on active machines or deposits
-  const hasMachines = Array.isArray(window.userMachines) && window.userMachines.length > 0;
-  const hasDeps = Array.isArray(deposits) && deposits.some(d => {
+  // 1. Strict local block: check if user has an active machine flag or deposit flag in local memory
+  const hasMachines = (Array.isArray(window.userMachines) && window.userMachines.length > 0) || window.hasActiveMachine === true;
+  const hasDeps = (Array.isArray(deposits) && deposits.some(d => {
     let s = (d.status || '').toLowerCase();
     return s === 'approved' || s === 'success' || s === 'completed';
-  });
+  })) || window.hasApprovedDeposit === true;
 
   if (!hasMachines && !hasDeps) {
-    alert('⚠️ Withdrawal restricted! You must purchase a machine or have an approved deposit before you can withdraw.');
-    return; // Stops execution completely right here!
+    alert('⚠️ Withdrawal restricted! You must purchase a machine or make an approved deposit before you can withdraw.');
+    return; // Stops execution immediately!
   }
 
   // 2. Validate withdrawal amount
