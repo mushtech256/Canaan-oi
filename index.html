@@ -651,16 +651,7 @@
   </div>
 
   <!-- ADMIN ACTIVE USERS MODAL -->
-<div id="adminManualCreditCard" style="display: none; background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.05);">
-  <h4 style="color: var(--accent); margin-bottom: 10px; font-size: 15px;">💳 Manual Account Crediting</h4>
-  <p style="color: var(--mut); font-size: 12px; margin-bottom: 10px;">Credit a user's balance directly if they experienced deposit issues.</p>
-  
-  <input type="text" id="adminCreditPhone" placeholder="Enter phone number (07XXXXXXXX)" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; margin-bottom: 8px;">
-  
-  <input type="number" id="adminCreditAmount" placeholder="Enter amount to credit (UGX)" style="width: 100%; padding: 10px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; margin-bottom: 10px;">
-  
-  <button class="btn btn-success" style="width: 100%; padding: 10px; font-weight: 600;" onclick="adminManualCreditUser()">Credit User Account</button>
-</div>
+
 
 
   <!-- ADMIN DORMANT USERS MODAL -->
@@ -1439,8 +1430,6 @@ async function loadAdminDashboardData() {
 </div>`;
         }       
       });
-      
-
 
                  // 2. Safely render pending deposits (Checking both pendingDeposits and deposits arrays)
       let allPending = [];
@@ -1778,66 +1767,6 @@ async function adminRejectWithdrawal(targetUserId, wIndex) {
     }
   } catch (e) { 
     alert('Error: ' + e.message); 
-  }
-}
-
-// Admin Manual Credit Function
-async function adminManualCreditUser() {
-  const phoneInput = document.getElementById('adminCreditPhone');
-  const amountInput = document.getElementById('adminCreditAmount');
-  
-  if (!phoneInput || !amountInput) return;
-  
-  let phone = phoneInput.value.trim();
-  let amountToAdd = Number(amountInput.value);
-
-  if (!phone || isNaN(amountToAdd) || amountToAdd <= 0) {
-    alert("Please enter a valid phone number and an amount greater than 0.");
-    return;
-  }
-
-  try {
-    const { collection, query, where, getDocs, updateDoc, doc } = window.firebaseFns;
-    const usersRef = collection(window.firebaseDb, "users");
-    const q = query(usersRef, where("phone", "==", phone));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      alert("No user found with that phone number.");
-      return;
-    }
-
-    const userDocSnap = querySnapshot.docs[0];
-    const userData = userDocSnap.data();
-    const userId = userDocSnap.id;
-
-    const currentBalance = Number(userData.balance) || 0;
-    const newBalance = currentBalance + amountToAdd;
-
-    let deposits = Array.isArray(userData.deposits) ? [...userData.deposits] : [];
-    deposits.push({
-      amount: amountToAdd,
-      rawAmount: amountToAdd,
-      status: 'Approved',
-      method: 'Admin Manual Credit',
-      date: new Date().toISOString()
-    });
-
-    const targetUserRef = doc(window.firebaseDb, "users", userId);
-    await updateDoc(targetUserRef, {
-      balance: newBalance,
-      deposits: deposits
-    });
-
-    alert(`Successfully credited UGX ${amountToAdd.toLocaleString()} to user ${phone}. New balance: UGX ${newBalance.toLocaleString()}`);
-    
-    phoneInput.value = '';
-    amountInput.value = '';
-    loadAdminDashboardData();
-
-  } catch (err) {
-    console.error("Error crediting user:", err);
-    alert("Failed to credit user account. Check console for details.");
   }
 }
 
