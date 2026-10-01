@@ -2991,9 +2991,11 @@ if (container) {
     `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No investment history.</div>';
   }
 }
-  // Combine summary cards at the top + the active tab's list content
+   // Combine summary cards at the top + the active tab's list content
+  let summaryHtml = '';
   container.innerHTML = summaryHtml + contentHtml;
 }
+
 
 
 // DEPOSIT MODAL FUNCTIONS
