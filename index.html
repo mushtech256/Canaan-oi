@@ -1683,17 +1683,31 @@ async function adminRejectWithdrawal(targetUserId, wIndex) {
     let snap = await getDoc(uRef);
     if (snap.exists()) {
       let uData = snap.data();
-      let wList = uData.withdrawals || [];
+      let wList = Array.isArray(uData.withdrawals) ? [...uData.withdrawals] : [];
       if (wList[wIndex]) {
-        let refundAmount = wList[wIndex].rawAmount || 0;
+        // Safely extract the amount using all possible naming conventions
+        let targetW = wList[wIndex];
+        let refundAmount = Number(targetW.rawAmount || targetW.amount || targetW.rawAmt || targetW.amt) || 0;
+        
         wList[wIndex].status = 'Cancelled';
-        await updateDoc(uRef, { balance: (Number(uData.balance) || 0) + refundAmount, withdrawals: wList });
-        alert('🚫 Withdrawal rejected and refunded.');
+        
+        let currentBalance = Number(uData.balance) || 0;
+        let newBalance = currentBalance + refundAmount;
+
+        await updateDoc(uRef, { 
+          balance: newBalance, 
+          withdrawals: wList 
+        });
+
+        alert(`🚫 Withdrawal rejected and UGX ${refundAmount.toLocaleString()} refunded to user balance.`);
         loadAdminDashboardData();
       }
     }
-  } catch (e) { alert('Error: ' + e.message); }
+  } catch (e) { 
+    alert('Error: ' + e.message); 
+  }
 }
+
 
 // Machine Controls (Render, Toggle, Edit Series Tag, and Add New Machine)
 function adminRenderMachineControls() {
