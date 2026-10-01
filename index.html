@@ -1417,7 +1417,7 @@ async function loadAdminDashboardData() {
         if (w.status === 'Succeed' || w.status === 'Approved') {
           overallTotalWithdrawals += wAmount;
                 } else if (w.status === 'Pending' || w.status === 'Processing') {
-          pendingWithdrawalsHTML += `<div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
+          pendingWithdrawalsHtml += `<div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
   <div>
     <b>📞 ${w.phone || uData.phone || 'User'}</b><br>
     <span style="color: var(--warning); font-size: 13px;">👤 Name: ${w.accountName || w.fullName || 'N/A'}</span><br>
