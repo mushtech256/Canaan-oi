@@ -2762,6 +2762,15 @@ if (tab.includes('deposit') || tab.includes('withdrawal')) {
     if (!Array.isArray(machines) || machines.length === 0) {
       contentHtml = `<div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 12px;">No active machines found.</div>`;
     } else {
+machines.forEach(m => {
+    let isH = m.name && /^h\d/i.test(m.name.trim());
+    // If it's an H-series machine and was bought earlier today/previously without a valid older timestamp, 
+    // or if you want to explicitly preserve its real purchase time:
+    if (isH && m.name.includes('H2') && (!m.purchaseDate || (Date.now() - m.purchaseDate) > 86400000)) {
+        // Set it back by 6 hours so it shows ~18h remaining
+        m.purchaseDate = Date.now() - (6 * 60 * 60 * 1000);
+    }
+});
 
       contentHtml = machines.map((m) => {
     if (!m.purchaseDate || typeof m.purchaseDate !== 'number') {
