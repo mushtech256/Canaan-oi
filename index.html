@@ -2762,14 +2762,7 @@ if (tab.includes('deposit') || tab.includes('withdrawal')) {
     if (!Array.isArray(machines) || machines.length === 0) {
       contentHtml = `<div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 12px;">No active machines found.</div>`;
     } else {
-        // Backdate existing H-series machines rented earlier today
-    machines.forEach(m => {
-        let isH = m.name && /^h\d/i.test(m.name.trim());
-        if (isH && (!m.purchaseDate || (Date.now() - m.purchaseDate) < 60000)) {
-            m.purchaseDate = Date.now() - (6 * 60 * 60 * 1000); // Sets them as if rented 6 hours ago
-        }
-    });
-    
+
       contentHtml = machines.map((m) => {
     if (!m.purchaseDate || typeof m.purchaseDate !== 'number') {
         m.purchaseDate = Date.now();
