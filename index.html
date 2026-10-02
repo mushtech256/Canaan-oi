@@ -2787,15 +2787,15 @@ return `
     </div>
 
     <!-- H-Series Payout Button -->
-    <div style="margin-top: 10px;">
-        ${isHSeries ? (
-            hoursPassed >= 24 
-            ? `<button onclick="claimDailyIncome('${m.id}')" class="btn" style="width: 100%; background: #10b981; color: #fff; padding: 8px;">Receive Income</button>`
-            : `<button class="btn" style="width: 100%; background: var(--mut); color: #fff; padding: 8px;" disabled>Available in ${Math.ceil(24 - hoursPassed)}h</button>`
-        ) : (
-            isCompleted ? `<button class="btn" style="width: 100%;">Collect Total</button>` : `<button class="btn" style="width: 100%; background: var(--mut);" disabled>Running...</button>`
-        )}
-    </div>
+<div style="margin-top: 10px;">
+    ${isHSeries ? (
+        hoursPassed >= 24 
+        ? `<button onclick="claimDailyIncome('${m.id}')" class="btn" style="width: 100%; background: #10b981; color: #fff; padding: 8px;">Receive Income</button>`
+        : `<button class="btn" style="width: 100%; background: var(--mut); color: #fff; padding: 8px;" disabled>Available in ${Math.ceil(24 - hoursPassed)}h</button>`
+    ) : (
+        isCompleted ? `<button class="btn" style="width: 100%;">Collect Total</button>` : `<button class="btn" style="width: 100%; background: var(--mut);" disabled>Running...</button>`
+    )}
+</div>
 </div>
 `;
 
@@ -2864,7 +2864,7 @@ return `
     } else if (typeof window.userBalance !== 'undefined') {
         window.userBalance += dailyAmount;
     }
-
+    machine.daysCounted = (machine.daysCounted || 0) + 1;
     machine.lastClaimTime = now;
 
     if (typeof saveUserData === 'function') saveUserData();
