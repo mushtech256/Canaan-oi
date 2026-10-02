@@ -2765,7 +2765,10 @@ if (tab.includes('deposit') || tab.includes('withdrawal')) {
        let now = Date.now();
        let lastClaim = m.lastClaimTime || m.purchaseDate || now;
        let hoursPassed = (now - lastClaim) / (1000 * 60 * 60);
-       let isHSeries = m.name && m.name.toLowerCase().includes('h');
+       let isHSeries = m.name && /^h\d/i.test(m.name.trim());
+       
+       
+       
        
 return `
 <div style="background: #1e293b; padding: 14px; margin-bottom: 12px; border-radius: 8px;">
@@ -2796,11 +2799,15 @@ return `
         ? `<button onclick="claimDailyIncome('${m.id}')" class="btn" style="width: 100%;">Receive Income (${Math.floor(hoursPassed / 24)} Days Ready)</button>`
         : `<button class="btn" style="width: 100%; background: #475569;" disabled>Available in ${Math.max(1, Math.ceil(24 - (hoursPassed % 24)))}h</button>`
     ) : (
-        isCompleted 
-        ? `<button class="btn" style="width: 100%;" disabled>Completed</button>` 
-        : `<button onclick="claimDailyIncome('${m.id}')" class="btn" style="width: 100%;">Receive Income</button>`
+        daysCounted < daysTotal 
+        ? `<button class="btn" style="width: 100%; background: #475569;" disabled>Running...</button>` 
+        : (isCompleted 
+            ? `<button class="btn" style="width: 100%; background: #10b981;" disabled>Completed</button>`
+            : `<button onclick="claimDailyIncome('${m.id}')" class="btn" style="width: 100%;">Receive Income</button>`
+          )
     )}
 </div>
+
 </div>
 `;
 
