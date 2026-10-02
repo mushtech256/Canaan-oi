@@ -2456,7 +2456,9 @@ if (viewName === 'chats') renderUserChat();
       grid.innerHTML = filtered.map(m => {
         let duration = seriesDurations[m.series] || 30;
         let totalIncome = m.daily * duration;
-        let badgeHtml = (m.series === 'H') ? `<div style="font-size: 9px; color: #10b981; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Daily Withdrawal</div>` : '';    
+        let isHSeries = m.name && /^h\d/i.test(m.name.trim());
+       let badgeHtml = isHSeries ? `<div style="font-size: 9px; color: #10b981; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Daily Withdrawal</div>` : '';
+
         return `
           <div onclick="openMachineDetail('${m.id}')" style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); display:flex; gap:14px; align-items:center; cursor:pointer;">
             <img src="${m.image}" alt="${m.name}" style="width:110px; height:85px; object-fit:cover; border-radius:8px; flex-shrink:0;">
@@ -2760,6 +2762,14 @@ if (tab.includes('deposit') || tab.includes('withdrawal')) {
     if (!Array.isArray(machines) || machines.length === 0) {
       contentHtml = `<div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 12px;">No active machines found.</div>`;
     } else {
+        // Backdate existing H-series machines rented earlier today
+    machines.forEach(m => {
+        let isH = m.name && /^h\d/i.test(m.name.trim());
+        if (isH && (!m.purchaseDate || (Date.now() - m.purchaseDate) < 60000)) {
+            m.purchaseDate = Date.now() - (6 * 60 * 60 * 1000); // Sets them as if rented 6 hours ago
+        }
+    });
+    
       contentHtml = machines.map((m) => {
     if (!m.purchaseDate || typeof m.purchaseDate !== 'number') {
         m.purchaseDate = Date.now();
