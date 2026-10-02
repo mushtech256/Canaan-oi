@@ -2520,10 +2520,18 @@ if (viewName === 'chats') renderUserChat();
       let duration = seriesDurations[m.series] || 30;
       let nowTime = new Date().getTime();
 
-      activeMachines.push({
-        id: m.id, name: m.name, series: m.series, price: m.price, daily: m.daily,
-        daysTotal: duration, daysCounted: 0, accrued: 0, totalCycle: m.daily * duration, purchaseTime: nowTime, lastCheckTime: nowTime, claimed: false
+            activeMachines.push({
+          id: m.id, 
+          name: m.name, 
+          series: m.series, 
+          price: m.price, 
+          daysTotal: duration, 
+          daysCounted: 0, 
+          accrued: 0, 
+          totalCycleIncome: (m.daily || 0) * duration,
+          purchaseDate: Date.now()
       });
+      
 
       investmentsList.unshift({ name: m.name, price: m.price, daily: m.daily });
       deposits.unshift({ desc: 'Rented ' + m.name, amt: '-UGX ' + m.price.toLocaleString(), rawAmt: -m.price, timestamp: nowTime });
