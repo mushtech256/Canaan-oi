@@ -2907,12 +2907,34 @@ return `
     let dailyAmount = Number(machine.daily) || 0;
     let totalPayout = dailyAmount * daysToClaim;
 
-    // Update user balance
-    if (typeof userBalance !== 'undefined') {
-        userBalance += totalPayout;
-    } else if (typeof window.userBalance !== 'undefined') {
-        window.userBalance += totalPayout;
+        // Update user balance globally and persistently
+    let currentBalance = Number(localStorage.getItem('user_balance') || localStorage.getItem('balance') || 0);
+    let newTotalBalance = currentBalance + totalPayout;
+    
+    localStorage.setItem('user_balance', newTotalBalance);
+    localStorage.setItem('balance', newTotalBalance);
+        // Sync online to Firebase if the user is logged in
+    if (window.firebaseDb && window.currentUser && window.firebaseFns) {
+        try {
+            const { doc, updateDoc, setDoc } = window.firebaseFns;
+            const userRef = doc(window.firebaseDb, "users", window.currentUser.uid);
+            updateDoc(userRef, { balance: newTotalBalance }).catch(() => {
+                setDoc(userRef, { balance: newTotalBalance }, { merge: true });
+            });
+        } catch (e) {
+            console.error("Error syncing balance to Firebase:", e);
+        }
     }
+    
+    if (typeof userBalance !== 'undefined') userBalance = newTotalBalance;
+    if (typeof window.userBalance !== 'undefined') window.userBalance = newTotalBalance;
+
+    // Force update the balance element displayed in the top header
+    const balanceEls = document.querySelectorAll('.header-balance, .user-balance, #userBalance, [id*="balance"], [class*="balance"]');
+    balanceEls.forEach(el => {
+        el.innerText = `UGX ${newTotalBalance.toLocaleString()}`;
+    });
+    
 
     // Update machine state
     machine.daysCounted = daysCounted + daysToClaim;
