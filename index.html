@@ -2882,12 +2882,12 @@ return `
   container.innerHTML = summaryHtml + contentHtml;
 }
  function claimDailyIncome(machineId) {
-    let machine = (window.activeMachines || activeMachines).find(m => m.id === machineId);
+    let machines = window.activeMachines || activeMachines || [];
+    let machine = machines.find(m => String(m.id) === String(machineId));
     if (!machine) {
         alert("Machine not found!");
         return;
     }
-
     let now = Date.now();
     let lastClaim = machine.lastClaimTime || machine.purchaseDate || now;
     let hoursPassed = (now - lastClaim) / (1000 * 60 * 60);
@@ -2924,8 +2924,9 @@ return `
         }
     }
     
-    let dailyAmount = Number(machine.daily) || 0;
-    let totalPayout = dailyAmount * daysToClaim;
+    let dailyRate = machine.daily || machine.dailyIncome || machine.income || (machine.name && machine.name.includes('H2') ? 5000 : 3000);
+let claimAmount = dailyRate * daysToClaim;
+
 
     // Update user balance globally and persistently
     let currentBalance = Number(localStorage.getItem('user_balance') || localStorage.getItem('balance') || 0);
