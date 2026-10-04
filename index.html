@@ -1479,7 +1479,7 @@ async function loadAdminDashboardData() {
           pendingWithdrawalsHtml += `<div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 8px;">
   <div>
     <b>📞 ${w.phone || uData.phone || 'User'}</b><br>
-    <span style="color: var(--warning); font-size: 13px;">👤 Name: ${w.accountName || w.fullName || 'N/A'}</span><br>
+        <span style="color: var(--warning); font-size: 13px;">👤 Name: ${w.accountName || w.fullName || 'N/A'}</span><br>
     <span style="color: #ef4444; font-weight: 700;">💰 Requested: UGX ${wAmount.toLocaleString()}</span><br>
     <span style="color: #10b981; font-weight: 700; font-size: 14px;">💸 Send to user: UGX ${netPayout.toLocaleString()}</span><br>
     <small style="color: var(--mut);">Method: ${w.method || w.network || 'N/A'}</small>
@@ -2786,7 +2786,8 @@ machines.forEach(m => {
         let daysTotal = m.daysTotal || 30;
         let daysLeft = Math.max(0, daysTotal - daysCounted);
         let accrued = m.accrued || 0;
-        let totalCycle = m.totalCycle || (m.daily * daysTotal) || 0;
+        let dailyRate = m.daily || m.dailyIncome || m.income || (m.name && m.name.includes('H2') ? 5000 : 3000);
+        let totalCycle = m.totalCycle || (dailyRate * daysTotal) || 0;
         let isCompleted = daysCounted >= daysTotal || m.claimed;
        let now = Date.now();
        let lastClaim = m.lastClaimTime || m.purchaseDate || now;
@@ -3490,4 +3491,4 @@ window.addEventListener('load', () => {
 
 </script>
 </body>
-</html>  
+</html> 
