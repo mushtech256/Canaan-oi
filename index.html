@@ -2700,15 +2700,20 @@ function claimDailyReward() {
   });
   processWithdrawalsTimeout();
   renderRecordsList();
-  updateUI();
+  
 }
 
 function renderRecordsList() {
   const container = document.getElementById('recordsContainer') || document.getElementById('recordsList');
   if (!container) return;
 
+    // Declare variables at the very top of the function to avoid scope errors
+  window.contentHtml = '';
+  window.summaryHtml = '';
+  
+
   // Calculate Lifetime Totals safely
-    let totalDeposits = 0;
+  let totalDeposits = 0;
   if (Array.isArray(deposits)) {
     deposits.forEach(d => {
       let status = (d.status || '').toLowerCase();
@@ -2721,6 +2726,7 @@ function renderRecordsList() {
       }
     });
   }
+  
   
 
   let totalWithdrawals = 0;
@@ -2755,7 +2761,7 @@ if (tab.includes('deposit') || tab.includes('withdrawal')) {
 
 
 
-  let contentHtml = '';
+  contentHtml = "";
 
   if (tab === 'active' || tab === 'active machines' || tab.includes('active')) {
     let machines = window.activeMachines || activeMachines || [];
@@ -2885,35 +2891,49 @@ return `
     let lastClaim = machine.lastClaimTime || machine.purchaseDate || now;
     let hoursPassed = (now - lastClaim) / (1000 * 60 * 60);
 
-    if (hoursPassed < 24) {
+    let daysTotal = machine.daysTotal || 30;
+    let daysCounted = machine.daysCounted || 0;
+    let daysLeft = Math.max(0, daysTotal - daysCounted);
+    
+    // Allow immediate claiming if the machine cycle is complete (0 days left)
+    let isCompleted = daysLeft === 0 || daysCounted >= daysTotal || machine.claimed;
+
+    // Only enforce the 24-hour wait if the machine is NOT yet completed
+    if (!isCompleted && hoursPassed < 24) {
         alert("Income not ready yet! Please wait for the 24-hour cycle.");
         return;
     }
 
     // Calculate how many full 24-hour blocks have passed
     let daysToClaim = Math.floor(hoursPassed / 24);
-    let daysTotal = machine.daysTotal || 30;
-    let daysCounted = machine.daysCounted || 0;
-    let daysLeft = Math.max(0, daysTotal - daysCounted);
 
     // Don't let them claim more days than are left in the total machine cycle
     daysToClaim = Math.min(daysToClaim, daysLeft);
 
+    // Special fix for completed machines: if daysLeft is 0, claim whatever final days are remaining in the cycle
     if (daysToClaim <= 0) {
-        alert("All cycle days have already been completed or claimed!");
-        return;
+        if (daysLeft === 0 && daysCounted < daysTotal) {
+            daysToClaim = daysTotal - daysCounted; // Claim any remaining balance
+        } else if (daysLeft === 0 && machine.status !== 'claimed') {
+            // Allow final claim for completed state if hours condition was met
+            daysToClaim = 1; 
+        } else {
+            alert("All cycle days have already been completed or claimed!");
+            return;
+        }
     }
-
+    
     let dailyAmount = Number(machine.daily) || 0;
     let totalPayout = dailyAmount * daysToClaim;
 
-        // Update user balance globally and persistently
+    // Update user balance globally and persistently
     let currentBalance = Number(localStorage.getItem('user_balance') || localStorage.getItem('balance') || 0);
     let newTotalBalance = currentBalance + totalPayout;
     
     localStorage.setItem('user_balance', newTotalBalance);
     localStorage.setItem('balance', newTotalBalance);
-        // Sync online to Firebase if the user is logged in
+
+    // Sync online to Firebase if the user is logged in
     if (window.firebaseDb && window.currentUser && window.firebaseFns) {
         try {
             const { doc, updateDoc, setDoc } = window.firebaseFns;
@@ -2934,7 +2954,6 @@ return `
     balanceEls.forEach(el => {
         el.innerText = `UGX ${newTotalBalance.toLocaleString()}`;
     });
-    
 
     // Update machine state
     machine.daysCounted = daysCounted + daysToClaim;
@@ -2944,7 +2963,7 @@ return `
 
     // Save and update UI
     if (typeof saveUserData === 'function') saveUserData();
-    if (typeof updateUI === 'function') updateUI();
+    if (typeof renderRecordsList === 'function') renderRecordsList();
 
     alert(`Successfully claimed UGX ${totalPayout.toLocaleString()} for ${daysToClaim} day(s)!`);
 }
@@ -2989,8 +3008,11 @@ return `
     }
 
     function updateUI() {
-      let safeBalance = Number(balance) || 0;
-
+    window.summaryHtml = "";
+    window.contentHtml = "";
+    let safeBalance = Number(balance) || 0;
+    
+    
       document.querySelectorAll('.userBalanceEl').forEach(el => el.innerText = 'UGX ' + safeBalance.toLocaleString());
       let headerEl = document.getElementById('userBalanceHeader');
       if (headerEl) headerEl.innerText = 'UGX ' + safeBalance.toLocaleString();
