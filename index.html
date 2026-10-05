@@ -3119,7 +3119,66 @@ let claimAmount = dailyRate * daysToClaim;
       navigator.clipboard.writeText(document.getElementById('refLinkText').value);
       alert('Copied invitation link!');
     }
+   async function adminManualCreditUser() {
+    const phoneInput = document.getElementById('adminCreditPhone').value.trim();
+    const amountInput = Number(document.getElementById('adminCreditAmount').value);
 
+    if (!phoneInput || isNaN(amountInput) || amountInput <= 0) {
+        alert("Please enter a valid phone number and credit amount.");
+        return;
+    }
+
+    const { collection, query, where, getDocs, doc, getDoc, updateDoc } = window.firebaseFns;
+    const db = window.firebaseDb;
+
+    if (!db || !window.firebaseFns) {
+        alert("Firebase environment not initialized properly.");
+        return;
+    }
+
+    try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('phone', '==', phoneInput)); 
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            alert("No user found with this phone number!");
+            return;
+        }
+
+        let userDocId = null;
+        querySnapshot.forEach((docSnap) => {
+            userDocId = docSnap.id;
+        });
+
+        const userRef = doc(db, 'users', userDocId);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
+            alert("User document does not exist.");
+            return;
+        }
+
+        const currentBalance = userSnap.data().balance || 0;
+        const currentWithdrawable = userSnap.data().withdrawableBalance || 0;
+
+        // Directly update balance and withdrawable balance
+        await updateDoc(userRef, {
+            balance: currentBalance + amountInput,
+            withdrawableBalance: currentWithdrawable + amountInput
+        });
+
+        alert(`Successfully credited UGX ${amountInput.toLocaleString()} to phone ${phoneInput}!`);
+        
+        document.getElementById('adminCreditPhone').value = '';
+        document.getElementById('adminCreditAmount').value = '';
+
+    } catch (err) {
+        console.error("Error performing manual account credit:", err);
+        alert("Failed to credit account. Check console for details.");
+    }
+}
+ 
     function updateUI() {
     window.summaryHtml = "";
     window.contentHtml = "";
