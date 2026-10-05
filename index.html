@@ -1093,6 +1093,115 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
         alert('✅ WhatsApp links updated successfully!');
       } catch (e) { alert('Error updating links: ' + e.message); }
     }
+    
+    /**
+ * Renders the admin machine management controls and handles 
+ * the differential payout logic for H-Series vs. Non H-Series machines.
+ */
+function adminRenderMachineControls(machineId, machineData, userInvestmentData) {
+    const controlsContainer = document.getElementById(`machine-controls-${machineId}`);
+    if (!controlsContainer) return;
+
+    const isHSeries = machineData.name.toUpperCase().includes('H-SERIES') || machineData.isHSeries === true;
+
+    controlsContainer.innerHTML = `
+        <div class="p-4 bg-slate-900 rounded-lg border border-slate-700 text-white">
+            <h4 class="font-bold text-lg mb-2">${machineData.name}</h4>
+            <p class="text-sm text-slate-400 mb-4">Type: <span class="text-emerald-400 font-semibold">${isHSeries ? 'H-Series (24-Hour Payout)' : 'Standard / Non H-Series (End-of-Cycle Payout)'}</span></p>
+            
+            <div class="flex gap-3">
+                <button onclick="updateMachineStatus('${machineId}', 'active')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded text-sm font-medium transition">Activate</button>
+                <button onclick="updateMachineStatus('${machineId}', 'paused')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded text-sm font-medium transition">Pause</button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Background worker / Firebase Cloud Function simulation to process user machine earnings 
+ * and apply the distinct payout rules using the modular Firebase SDK.
+ */
+async function processMachinePayoutsPeriodically(userId, investmentDoc) {
+    const now = Date.now();
+    const purchaseTime = investmentDoc.purchaseTimestamp; 
+    const cycleDurationMs = investmentDoc.cycleDays * 24 * 60 * 60 * 1000;
+    const expiryTime = purchaseTime + cycleDurationMs;
+    
+    const isHSeries = investmentDoc.isHSeries;
+    const dailyPayout = investmentDoc.dailyPayoutAmount;
+
+    // Pull modular functions from window.firebaseFns to match your app structure
+    const { doc, runTransaction } = window.firebaseFns;
+    
+    const userBalanceRef = doc(window.firebaseDb, 'users', userId);
+    const investmentRef = doc(window.firebaseDb, 'user_investments', investmentDoc.id);
+
+    if (isHSeries) {
+        // --- H-SERIES LOGIC ---
+        const lastPayoutTime = investmentDoc.lastPayoutTimestamp || purchaseTime;
+        const hoursElapsed = (now - lastPayoutTime) / (1000 * 60 * 60);
+
+        if (hoursElapsed >= 24 && now <= expiryTime) {
+            const cyclesDue = Math.floor(hoursElapsed / 24);
+            const payoutToAdd = dailyPayout * cyclesDue;
+            const newLastPayoutTime = lastPayoutTime + (cyclesDue * 24 * 60 * 60 * 1000);
+
+            try {
+                await runTransaction(window.firebaseDb, async (transaction) => {
+                    const userDoc = await transaction.get(userBalanceRef);
+                    if (!userDoc.exists()) throw new Error("User document does not exist!");
+                    
+                    const currentBalance = userDoc.data().balance || 0;
+                    const currentWithdrawable = userDoc.data().withdrawableBalance || 0;
+
+                    transaction.update(userBalanceRef, {
+                        balance: currentBalance + payoutToAdd,
+                        withdrawableBalance: currentWithdrawable + payoutToAdd
+                    });
+
+                    transaction.update(investmentRef, {
+                        lastPayoutTimestamp: newLastPayoutTime,
+                        totalEarned: (investmentDoc.totalEarned || 0) + payoutToAdd
+                    });
+                });
+                console.log(`H-Series Payout Success: Credited $${payoutToAdd} to user ${userId}`);
+            } catch (err) {
+                console.error("Error processing H-Series payout:", err);
+            }
+        }
+
+    } else {
+        // --- NON H-SERIES LOGIC ---
+        if (now >= expiryTime && !investmentDoc.isCycleCompleted) {
+            const totalDays = investmentDoc.cycleDays;
+            const totalIncome = dailyPayout * totalDays;
+
+            try {
+                await runTransaction(window.firebaseDb, async (transaction) => {
+                    const userDoc = await transaction.get(userBalanceRef);
+                    if (!userDoc.exists()) throw new Error("User document does not exist!");
+
+                    const currentBalance = userDoc.data().balance || 0;
+                    const currentWithdrawable = userDoc.data().withdrawableBalance || 0;
+
+                    transaction.update(userBalanceRef, {
+                        balance: currentBalance + totalIncome,
+                        withdrawableBalance: currentWithdrawable + totalIncome
+                    });
+
+                    transaction.update(investmentRef, {
+                        isCycleCompleted: true,
+                        totalEarned: totalIncome,
+                        status: 'completed'
+                    });
+                });
+                console.log(`Non H-Series Cycle Completed: Credited total lump sum of $${totalIncome} to user ${userId}`);
+            } catch (err) {
+                console.error("Error processing Non H-Series final payout:", err);
+            }
+        }
+    }
+}
 
     async function loadMachinesFromDb() {
       try {
@@ -2523,16 +2632,18 @@ if (viewName === 'chats') renderUserChat();
       let nowTime = new Date().getTime();
 
             activeMachines.push({
-          id: m.id, 
-          name: m.name, 
-          series: m.series, 
-          price: m.price, 
-          daysTotal: duration, 
-          daysCounted: 0, 
-          accrued: 0, 
-          totalCycleIncome: (m.daily || 0) * duration,
-          purchaseDate: Date.now()
-      });
+    id: m.id,
+    name: m.name,
+    series: m.series,
+    price: m.price,
+    daily: m.daily || 0, // <-- Add this line so the daily rate is tracked!
+    daysTotal: duration,
+    daysCounted: 0,
+    accrued: 0,
+    totalCycleIncome: (m.daily || 0) * duration,
+    purchaseDate: Date.now()
+});
+
       
 
       investmentsList.unshift({ name: m.name, price: m.price, daily: m.daily });
@@ -2930,7 +3041,7 @@ let claimAmount = dailyRate * daysToClaim;
 
     // Update user balance globally and persistently
     let currentBalance = Number(localStorage.getItem('user_balance') || localStorage.getItem('balance') || 0);
-    let newTotalBalance = currentBalance + totalPayout;
+    let newTotalBalance = currentBalance + claimAmount;
     
     localStorage.setItem('user_balance', newTotalBalance);
     localStorage.setItem('balance', newTotalBalance);
@@ -2967,7 +3078,7 @@ let claimAmount = dailyRate * daysToClaim;
     if (typeof saveUserData === 'function') saveUserData();
     if (typeof renderRecordsList === 'function') renderRecordsList();
 
-    alert(`Successfully claimed UGX ${totalPayout.toLocaleString()} for ${daysToClaim} day(s)!`);
+    alert(`Successfully claimed UGX ${claimAmount.toLocaleString()}`);
 }
 
 
