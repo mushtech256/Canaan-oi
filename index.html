@@ -2992,6 +2992,7 @@ return `
 
   container.innerHTML = summaryHtml + contentHtml;
 }
+
  function claimDailyIncome(machineId) {
     let machines = window.activeMachines || activeMachines || [];
     let machine = machines.find(m => String(m.id) === String(machineId));
@@ -3007,27 +3008,20 @@ return `
     let daysCounted = machine.daysCounted || 0;
     let daysLeft = Math.max(0, daysTotal - daysCounted);
     
-    // Allow immediate claiming if the machine cycle is complete (0 days left)
     let isCompleted = daysLeft === 0 || daysCounted >= daysTotal || machine.claimed;
 
-    // Only enforce the 24-hour wait if the machine is NOT yet completed
     if (!isCompleted && hoursPassed < 24) {
         alert("Income not ready yet! Please wait for the 24-hour cycle.");
         return;
     }
 
-    // Calculate how many full 24-hour blocks have passed
     let daysToClaim = Math.floor(hoursPassed / 24);
-
-    // Don't let them claim more days than are left in the total machine cycle
     daysToClaim = Math.min(daysToClaim, daysLeft);
 
-    // Special fix for completed machines: if daysLeft is 0, claim whatever final days are remaining in the cycle
     if (daysToClaim <= 0) {
         if (daysLeft === 0 && daysCounted < daysTotal) {
-            daysToClaim = daysTotal - daysCounted; // Claim any remaining balance
+            daysToClaim = daysTotal - daysCounted; 
         } else if (daysLeft === 0 && machine.status !== 'claimed') {
-            // Allow final claim for completed state if hours condition was met
             daysToClaim = 1; 
         } else {
             alert("All cycle days have already been completed or claimed!");
@@ -3036,47 +3030,61 @@ return `
     }
     
     let dailyRate = machine.daily || machine.dailyIncome || machine.income || (machine.name && machine.name.includes('H2') ? 5000 : 3000);
-let claimAmount = dailyRate * daysToClaim;
+    let claimAmount = dailyRate * daysToClaim;
 
+    // 1. Advance machine progress
+    machine.daysCounted = daysCounted + daysToClaim;
+    machine.lastClaimTime = lastClaim + (daysToClaim * 24 * 60 * 60 * 1000);
+    if (machine.daysCounted >= daysTotal) {
+        machine.claimed = true;
+        machine.status = 'claimed';
+    }
 
-    // Update user balance globally and persistently
+    // 2. Update global JavaScript balance variables
+    if (typeof balance !== 'undefined') {
+        balance = Number(balance || 0) + Number(claimAmount);
+    }
+    if (typeof withdrawableBalance !== 'undefined') {
+        withdrawableBalance = Number(withdrawableBalance || 0) + Number(claimAmount);
+    }
+
+    // 3. Update persistent storage
     let currentBalance = Number(localStorage.getItem('user_balance') || localStorage.getItem('balance') || 0);
     let newTotalBalance = currentBalance + claimAmount;
     
     localStorage.setItem('user_balance', newTotalBalance);
     localStorage.setItem('balance', newTotalBalance);
 
-    // Sync online to Firebase if the user is logged in
+    // 4. Save data and sync to Firebase
+    if (typeof saveUserData === 'function') {
+        saveUserData();
+    }
+
     if (window.firebaseDb && window.currentUser && window.firebaseFns) {
         try {
             const { doc, updateDoc, setDoc } = window.firebaseFns;
             const userRef = doc(window.firebaseDb, "users", window.currentUser.uid);
-            updateDoc(userRef, { balance: newTotalBalance }).catch(() => {
-                setDoc(userRef, { balance: newTotalBalance }, { merge: true });
+            updateDoc(userRef, { 
+                balance: newTotalBalance,
+                activeMachines: window.activeMachines || activeMachines
+            }).catch(() => {
+                setDoc(userRef, { 
+                    balance: newTotalBalance,
+                    activeMachines: window.activeMachines || activeMachines
+                }, { merge: true });
             });
         } catch (e) {
             console.error("Error syncing balance to Firebase:", e);
         }
     }
-    
-    if (typeof userBalance !== 'undefined') userBalance = newTotalBalance;
-    if (typeof window.userBalance !== 'undefined') window.userBalance = newTotalBalance;
 
-    // Force update the balance element displayed in the top header
-    const balanceEls = document.querySelectorAll('.header-balance, .user-balance, #userBalance, [id*="balance"], [class*="balance"]');
-    balanceEls.forEach(el => {
-        el.innerText = `UGX ${newTotalBalance.toLocaleString()}`;
-    });
-
-    // Update machine state
-    machine.daysCounted = daysCounted + daysToClaim;
-    
-    // Advance lastClaimTime by the exact number of claimed blocks to preserve any leftover hours
-    machine.lastClaimTime = lastClaim + (daysToClaim * 24 * 60 * 60 * 1000);
-
-    // Save and update UI
-    if (typeof saveUserData === 'function') saveUserData();
-    if (typeof renderRecordsList === 'function') renderRecordsList();
+    // 5. Refresh UI elements immediately
+    if (typeof updateUI === 'function') {
+        updateUI();
+    }
+    if (typeof renderRecordsList === 'function') {
+        renderRecordsList();
+    }
 
     alert(`Successfully claimed UGX ${claimAmount.toLocaleString()}`);
 }
