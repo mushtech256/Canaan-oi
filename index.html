@@ -1094,115 +1094,6 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
       } catch (e) { alert('Error updating links: ' + e.message); }
     }
     
-    /**
- * Renders the admin machine management controls and handles 
- * the differential payout logic for H-Series vs. Non H-Series machines.
- */
-function adminRenderMachineControls(machineId, machineData, userInvestmentData) {
-    const controlsContainer = document.getElementById(`machine-controls-${machineId}`);
-    if (!controlsContainer) return;
-
-    const isHSeries = machineData.name.toUpperCase().includes('H-SERIES') || machineData.isHSeries === true;
-
-    controlsContainer.innerHTML = `
-        <div class="p-4 bg-slate-900 rounded-lg border border-slate-700 text-white">
-            <h4 class="font-bold text-lg mb-2">${machineData.name}</h4>
-            <p class="text-sm text-slate-400 mb-4">Type: <span class="text-emerald-400 font-semibold">${isHSeries ? 'H-Series (24-Hour Payout)' : 'Standard / Non H-Series (End-of-Cycle Payout)'}</span></p>
-            
-            <div class="flex gap-3">
-                <button onclick="updateMachineStatus('${machineId}', 'active')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded text-sm font-medium transition">Activate</button>
-                <button onclick="updateMachineStatus('${machineId}', 'paused')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded text-sm font-medium transition">Pause</button>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Background worker / Firebase Cloud Function simulation to process user machine earnings 
- * and apply the distinct payout rules using the modular Firebase SDK.
- */
-async function processMachinePayoutsPeriodically(userId, investmentDoc) {
-    const now = Date.now();
-    const purchaseTime = investmentDoc.purchaseTimestamp; 
-    const cycleDurationMs = investmentDoc.cycleDays * 24 * 60 * 60 * 1000;
-    const expiryTime = purchaseTime + cycleDurationMs;
-    
-    const isHSeries = investmentDoc.isHSeries;
-    const dailyPayout = investmentDoc.dailyPayoutAmount;
-
-    // Pull modular functions from window.firebaseFns to match your app structure
-    const { doc, runTransaction } = window.firebaseFns;
-    
-    const userBalanceRef = doc(window.firebaseDb, 'users', userId);
-    const investmentRef = doc(window.firebaseDb, 'user_investments', investmentDoc.id);
-
-    if (isHSeries) {
-        // --- H-SERIES LOGIC ---
-        const lastPayoutTime = investmentDoc.lastPayoutTimestamp || purchaseTime;
-        const hoursElapsed = (now - lastPayoutTime) / (1000 * 60 * 60);
-
-        if (hoursElapsed >= 24 && now <= expiryTime) {
-            const cyclesDue = Math.floor(hoursElapsed / 24);
-            const payoutToAdd = dailyPayout * cyclesDue;
-            const newLastPayoutTime = lastPayoutTime + (cyclesDue * 24 * 60 * 60 * 1000);
-
-            try {
-                await runTransaction(window.firebaseDb, async (transaction) => {
-                    const userDoc = await transaction.get(userBalanceRef);
-                    if (!userDoc.exists()) throw new Error("User document does not exist!");
-                    
-                    const currentBalance = userDoc.data().balance || 0;
-                    const currentWithdrawable = userDoc.data().withdrawableBalance || 0;
-
-                    transaction.update(userBalanceRef, {
-                        balance: currentBalance + payoutToAdd,
-                        withdrawableBalance: currentWithdrawable + payoutToAdd
-                    });
-
-                    transaction.update(investmentRef, {
-                        lastPayoutTimestamp: newLastPayoutTime,
-                        totalEarned: (investmentDoc.totalEarned || 0) + payoutToAdd
-                    });
-                });
-                console.log(`H-Series Payout Success: Credited $${payoutToAdd} to user ${userId}`);
-            } catch (err) {
-                console.error("Error processing H-Series payout:", err);
-            }
-        }
-
-    } else {
-        // --- NON H-SERIES LOGIC ---
-        if (now >= expiryTime && !investmentDoc.isCycleCompleted) {
-            const totalDays = investmentDoc.cycleDays;
-            const totalIncome = dailyPayout * totalDays;
-
-            try {
-                await runTransaction(window.firebaseDb, async (transaction) => {
-                    const userDoc = await transaction.get(userBalanceRef);
-                    if (!userDoc.exists()) throw new Error("User document does not exist!");
-
-                    const currentBalance = userDoc.data().balance || 0;
-                    const currentWithdrawable = userDoc.data().withdrawableBalance || 0;
-
-                    transaction.update(userBalanceRef, {
-                        balance: currentBalance + totalIncome,
-                        withdrawableBalance: currentWithdrawable + totalIncome
-                    });
-
-                    transaction.update(investmentRef, {
-                        isCycleCompleted: true,
-                        totalEarned: totalIncome,
-                        status: 'completed'
-                    });
-                });
-                console.log(`Non H-Series Cycle Completed: Credited total lump sum of $${totalIncome} to user ${userId}`);
-            } catch (err) {
-                console.error("Error processing Non H-Series final payout:", err);
-            }
-        }
-    }
-}
-
     async function loadMachinesFromDb() {
       try {
         const { collection, getDocs } = window.firebaseFns;
@@ -1487,6 +1378,14 @@ async function processMachinePayoutsPeriodically(userId, investmentDoc) {
 
     processActiveMachinesProgress();
     processWithdrawalsTimeout();
+    
+    // Update countdown timers live every 1 second when the app is open
+setInterval(() => {
+  let activeTab = (currentRecordTab || '').toLowerCase();
+  if (activeTab.includes('active') && document.getElementById('v-records').classList.contains('active')) {
+    renderRecordsList();
+  }
+}, 1000);
 
     document.getElementById('authContainer').style.display = 'none';
     document.getElementById('appContainer').style.display = 'block';
@@ -2481,40 +2380,79 @@ if (!userId) {
       if (updated) saveUserData();
     }
 
-    function processActiveMachinesProgress() {
-      let now = new Date().getTime();
+        async function processActiveMachinesProgress() {
+      let now = Date.now();
+      let currentDate = new Date(now);
       let updated = false;
+      let totalIncrement = 0;
 
-      activeMachines.forEach(m => {
-        if (m.claimed) return;
-        let lastCheck = m.lastCheckTime || m.purchaseTime || now;
-        let hoursPassed = (now - lastCheck) / (1000 * 60 * 60);
+      for (let m of activeMachines) {
+        if (m.isCycleCompleted || m.claimed) continue;
+        
+        let lastCheck = m.lastCheckTime || m.purchaseDate || now;
+        let lastCheckDate = new Date(lastCheck);
+        let totalDays = m.daysTotal || 30;
+        let daysCounted = m.daysCounted || 0;
+        let isH = m.isHSeries || (m.name && /^h\d/i.test(m.name.trim()));
 
-        if (m.series === 'VIP') {
-          let cyclesPassed = Math.floor(hoursPassed / 24);
-          if (cyclesPassed > 0 && m.daysCounted < m.daysTotal) {
-            let actualDaysToAdd = Math.min(m.daysTotal - m.daysCounted, cyclesPassed);
-            m.daysCounted += actualDaysToAdd;
-            m.accrued = (m.accrued || 0) + (actualDaysToAdd * m.daily);
-            m.lastCheckTime = lastCheck + (actualDaysToAdd * 24 * 60 * 60 * 1000);
-            updated = true;
-          }
-        } else {
-          let lastCheckDate = new Date(lastCheck);
-          let currentDate = new Date(now);
-          if (currentDate.getDate() !== lastCheckDate.getDate()) {
-            if (m.daysCounted < m.daysTotal) {
-              m.daysCounted += 1;
-              m.accrued = m.daysCounted * m.daily;
-              m.lastCheckTime = now;
+        if (isH) {
+          // --- H-SERIES: Exact 24-Hour Rolling Interval ---
+          let hoursPassed = (now - lastCheck) / (1000 * 60 * 60);
+          if (hoursPassed >= 24 && daysCounted < totalDays) {
+            let cyclesPassed = Math.floor(hoursPassed / 24);
+            let actualDaysToAdd = Math.min(totalDays - daysCounted, cyclesPassed);
+            
+            if (actualDaysToAdd > 0) {
+              let payoutToAdd = (m.daily || 0) * actualDaysToAdd;
+              totalIncrement += payoutToAdd;
+              m.totalEarned = (m.totalEarned || 0) + payoutToAdd;
+
+              daysCounted += actualDaysToAdd;
+              m.daysCounted = daysCounted;
+              m.lastCheckTime = lastCheck + (actualDaysToAdd * 24 * 60 * 60 * 1000);
+
+              if (daysCounted >= totalDays) {
+                m.isCycleCompleted = true;
+                m.claimed = true;
+              }
               updated = true;
             }
           }
-        }
-      });
-      if (updated) saveUserData();
-    }
+        } else {
+          // --- NON H-SERIES: Calendar-Day Midnight Progression ---
+          // Checks if the current calendar day is different from the last checked day
+          if (currentDate.getDate() !== lastCheckDate.getDate() && daysCounted < totalDays) {
+            daysCounted += 1;
+            m.daysCounted = daysCounted;
+            m.lastCheckTime = now;
+            updated = true;
 
+            // Check if this final calendar day completes the full cycle
+            if (daysCounted >= totalDays) {
+              m.isCycleCompleted = true;
+              m.claimed = true;
+              
+              let fullCycleIncome = (m.daily || 0) * totalDays;
+              totalIncrement += fullCycleIncome;
+              m.totalEarned = fullCycleIncome;
+            }
+          }
+        }
+      }
+
+      if (updated && totalIncrement > 0) {
+        balance = Number(balance || 0) + totalIncrement;
+        
+        let currentBalance = Number(localStorage.getItem('user_balance') || balance);
+        let newTotalBalance = currentBalance + totalIncrement;
+        localStorage.setItem('user_balance', newTotalBalance);
+        localStorage.setItem('balance', newTotalBalance);
+
+        await saveUserData();
+        if (typeof updateUI === 'function') updateUI();
+      }
+    }
+    
     async function saveUserData() {
       if (!currentUserId) return;
       const { doc, updateDoc } = window.firebaseFns;
@@ -2631,18 +2569,22 @@ if (viewName === 'chats') renderUserChat();
       let duration = seriesDurations[m.series] || 30;
       let nowTime = new Date().getTime();
 
-            activeMachines.push({
-    id: m.id,
-    name: m.name,
-    series: m.series,
-    price: m.price,
-    daily: m.daily || 0, // <-- Add this line so the daily rate is tracked!
-    daysTotal: duration,
-    daysCounted: 0,
-    accrued: 0,
-    totalCycleIncome: (m.daily || 0) * duration,
-    purchaseDate: Date.now()
-});
+                 activeMachines.push({
+        id: m.id,
+        name: m.name,
+        series: m.series,
+        price: m.price,
+        daily: m.daily || 0,
+        daysTotal: duration,
+        daysCounted: 0,
+        accrued: 0,
+        totalCycleIncome: (m.daily || 0) * duration,
+        purchaseDate: Date.now(),
+        lastCheckTime: Date.now(),
+        isHSeries: m.name && /^h\d/i.test(m.name.trim()),
+        isCycleCompleted: false
+      });
+ 
 
       
 
@@ -2667,34 +2609,7 @@ if (viewName === 'chats') renderUserChat();
     }
     
 
-    function receiveIncome(index) {
-      let machine = activeMachines[index];
-      let earningsToClaim = 0;
-
-      if (machine.series === 'VIP') {
-        earningsToClaim = machine.accrued || machine.daily;
-        if (earningsToClaim > 0) {
-          balance = Number(balance) + Number(earningsToClaim);
-          machine.accrued = 0;
-          if (machine.daysCounted >= machine.daysTotal) machine.claimed = true;
-          deposits.unshift({ desc: `VIP Income (${machine.name})`, amt: '+UGX ' + earningsToClaim.toLocaleString(), rawAmt: earningsToClaim, timestamp: new Date().getTime() });
-          saveUserData();
-          updateUI();
-          alert(`Claimed UGX ${earningsToClaim.toLocaleString()} into your balance!`);
-        } else { alert('No VIP earnings ready yet.'); }
-      } else {
-        if ((machine.daysCounted || 0) >= machine.daysTotal && !machine.claimed) {
-          earningsToClaim = machine.totalCycle;
-          balance = Number(balance) + Number(earningsToClaim);
-          machine.claimed = true;
-          deposits.unshift({ desc: `Cycle Income (${machine.name})`, amt: '+UGX ' + earningsToClaim.toLocaleString(), rawAmt: earningsToClaim, timestamp: new Date().getTime() });
-          saveUserData();
-          updateUI();
-          alert(`Cycle completed! Earned UGX ${earningsToClaim.toLocaleString()}!`);
-        } else { alert('Machine earnings process daily and can be claimed upon completion.'); }
-      }
-    }
-
+    
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
     
@@ -2890,68 +2805,48 @@ machines.forEach(m => {
 });
 
       contentHtml = machines.map((m) => {
-    if (!m.purchaseDate || typeof m.purchaseDate !== 'number') {
-        m.purchaseDate = Date.now();
-    }
         let daysCounted = m.daysCounted || 0;
         let daysTotal = m.daysTotal || 30;
         let daysLeft = Math.max(0, daysTotal - daysCounted);
-        let accrued = m.accrued || 0;
-        let dailyRate = m.daily || m.dailyIncome || m.income || (m.name && m.name.includes('H2') ? 5000 : 3000);
-        let totalCycle = m.totalCycle || (dailyRate * daysTotal) || 0;
-        let isCompleted = daysCounted >= daysTotal || m.claimed;
-       let now = Date.now();
-       let lastClaim = m.lastClaimTime || m.purchaseDate || now;
-       let hoursPassed = (now - lastClaim) / (1000 * 60 * 60);
-       let isHSeries = m.name && /^h\d/i.test(m.name.trim());
-       
-       
-       
-       
-return `
-<div style="background: #1e293b; padding: 14px; margin-bottom: 12px; border-radius: 8px;">
-    <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px;">
-        <span>${m.name || 'Machine'}</span> ${isCompleted ? '(Completed)' : ''}
-    </div>
-    <div style="display: flex; justify-content: space-between;">
-        <span>Days Counted:</span>
-        <span style="color: #f8fafc; font-weight: 600;">${daysCounted} / ${daysTotal} days</span>
-    </div>
-    <div style="display: flex; justify-content: space-between;">
-        <span>Days Left:</span>
-        <span style="color: #f8fafc; font-weight: 600;">${daysLeft} days</span>
-    </div>
-    <div style="display: flex; justify-content: space-between;">
-        <span>Accrued Earnings:</span>
-        <span style="color: #10b981; font-weight: 600;">UGX ${accrued}</span>
-    </div>
-    <div style="display: flex; justify-content: space-between;">
-        <span>Total Cycle Income:</span>
-        <span style="color: #f8fafc; font-weight: 600;">UGX ${totalCycle}</span>
-    </div>
+        let totalCycle = (m.daily || 0) * daysTotal;
+        let isCompleted = m.isCycleCompleted || daysCounted >= daysTotal;
+        let isH = m.isHSeries || (m.name && /^h\d/i.test(m.name.trim()));
 
-    <!-- H-Series Payout Button -->
-<div style="margin-top: 10px;">
-    ${isHSeries ? (
-        Math.floor(hoursPassed / 24) >= 1 
-        ? `<button onclick="claimDailyIncome('${m.id}')" class="btn" style="width: 100%;">Receive Income (${Math.floor(hoursPassed / 24)} Days Ready)</button>`
-        : `<button class="btn" style="width: 100%; background: #475569;" disabled>Available in ${Math.max(1, Math.ceil(24 - (hoursPassed % 24)))}h</button>`
-    ) : (
-        daysCounted < daysTotal 
-        ? `<button class="btn" style="width: 100%; background: #475569;" disabled>Running...</button>` 
-        : (isCompleted 
-            ? `<button class="btn" style="width: 100%; background: #10b981;" disabled>Completed</button>`
-            : `<button onclick="claimDailyIncome('${m.id}')" class="btn" style="width: 100%;">Receive Income</button>`
-          )
-    )}
-</div>
+        let lastCheck = m.lastCheckTime || m.purchaseDate || Date.now();
+        let nextPayoutTime = lastCheck + (24 * 60 * 60 * 1000);
+        let timeLeftMs = Math.max(0, nextPayoutTime - Date.now());
+        let hoursLeft = Math.floor(timeLeftMs / (1000 * 60 * 60));
+        let minsLeft = Math.floor((timeLeftMs % (1000 * 60 * 60)) / (1000 * 60));
 
-
-</div>
-`;
-
-
+        return `
+          <div style="background: #1e293b; padding: 14px; margin-bottom: 12px; border-radius: 8px;">
+            <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px; display: flex; justify-content: space-between;">
+              <span>${m.name || 'Machine'}</span> 
+              <span style="font-size: 11px; color: ${isCompleted ? '#10b981' : '#38bdf8'};">${isCompleted ? 'Completed' : (isH ? 'H-Series (Auto-Daily)' : 'Standard (Auto-Midnight)')}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+              <span style="color: #94a3b8;">Days Counted:</span>
+              <span style="color: #f8fafc; font-weight: 600;">${daysCounted} / ${daysTotal} days</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+              <span style="color: #94a3b8;">Days Left:</span>
+              <span style="color: #f8fafc; font-weight: 600;">${daysLeft} days</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+              <span style="color: #94a3b8;">Total Cycle Income:</span>
+              <span style="color: #10b981; font-weight: 600;">UGX ${totalCycle.toLocaleString()}</span>
+            </div>
+            
+            ${isH && !isCompleted ? `
+              <div style="margin-top: 8px; font-size: 11px; background: rgba(16, 185, 129, 0.1); padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #94a3b8;">Next Automated Payout:</span>
+                <span style="color: #10b981; font-weight: 700;">${hoursLeft}h${minsLeft}m</span>
+              </div>
+            ` : ''}
+          </div>
+        `;
       }).join('');
+      
     }
   } else {
     let dataArray = [];
@@ -2993,102 +2888,6 @@ return `
   container.innerHTML = summaryHtml + contentHtml;
 }
 
- function claimDailyIncome(machineId) {
-    let machines = window.activeMachines || activeMachines || [];
-    let machine = machines.find(m => String(m.id) === String(machineId));
-    if (!machine) {
-        alert("Machine not found!");
-        return;
-    }
-    let now = Date.now();
-    let lastClaim = machine.lastClaimTime || machine.purchaseDate || now;
-    let hoursPassed = (now - lastClaim) / (1000 * 60 * 60);
-
-    let daysTotal = machine.daysTotal || 30;
-    let daysCounted = machine.daysCounted || 0;
-    let daysLeft = Math.max(0, daysTotal - daysCounted);
-    
-    let isCompleted = daysLeft === 0 || daysCounted >= daysTotal || machine.claimed;
-
-    if (!isCompleted && hoursPassed < 24) {
-        alert("Income not ready yet! Please wait for the 24-hour cycle.");
-        return;
-    }
-
-    let daysToClaim = Math.floor(hoursPassed / 24);
-    daysToClaim = Math.min(daysToClaim, daysLeft);
-
-    if (daysToClaim <= 0) {
-        if (daysLeft === 0 && daysCounted < daysTotal) {
-            daysToClaim = daysTotal - daysCounted; 
-        } else if (daysLeft === 0 && machine.status !== 'claimed') {
-            daysToClaim = 1; 
-        } else {
-            alert("All cycle days have already been completed or claimed!");
-            return;
-        }
-    }
-    
-    let dailyRate = machine.daily || machine.dailyIncome || machine.income || (machine.name && machine.name.includes('H2') ? 5000 : 3000);
-    let claimAmount = dailyRate * daysToClaim;
-
-    // 1. Advance machine progress
-    machine.daysCounted = daysCounted + daysToClaim;
-    machine.lastClaimTime = lastClaim + (daysToClaim * 24 * 60 * 60 * 1000);
-    if (machine.daysCounted >= daysTotal) {
-        machine.claimed = true;
-        machine.status = 'claimed';
-    }
-
-    // 2. Update global JavaScript balance variables
-    if (typeof balance !== 'undefined') {
-        balance = Number(balance || 0) + Number(claimAmount);
-    }
-    if (typeof withdrawableBalance !== 'undefined') {
-        withdrawableBalance = Number(withdrawableBalance || 0) + Number(claimAmount);
-    }
-
-    // 3. Update persistent storage
-    let currentBalance = Number(localStorage.getItem('user_balance') || localStorage.getItem('balance') || 0);
-    let newTotalBalance = currentBalance + claimAmount;
-    
-    localStorage.setItem('user_balance', newTotalBalance);
-    localStorage.setItem('balance', newTotalBalance);
-
-    // 4. Save data and sync to Firebase
-    if (typeof saveUserData === 'function') {
-        saveUserData();
-    }
-
-    if (window.firebaseDb && window.currentUser && window.firebaseFns) {
-        try {
-            const { doc, updateDoc, setDoc } = window.firebaseFns;
-            const userRef = doc(window.firebaseDb, "users", window.currentUser.uid);
-            updateDoc(userRef, { 
-                balance: newTotalBalance,
-                activeMachines: window.activeMachines || activeMachines
-            }).catch(() => {
-                setDoc(userRef, { 
-                    balance: newTotalBalance,
-                    activeMachines: window.activeMachines || activeMachines
-                }, { merge: true });
-            });
-        } catch (e) {
-            console.error("Error syncing balance to Firebase:", e);
-        }
-    }
-
-    // 5. Refresh UI elements immediately
-    if (typeof updateUI === 'function') {
-        updateUI();
-    }
-    if (typeof renderRecordsList === 'function') {
-        renderRecordsList();
-    }
-
-    alert(`Successfully claimed UGX ${claimAmount.toLocaleString()}`);
-}
-
 
     async function renderTeamView() {
   const refLinkInput = document.getElementById('refLinkText');
@@ -3106,8 +2905,8 @@ return `
 
       if (userDocSnap.exists()) {
         const liveCount = userDocSnap.data().teamCount || 0;
-        teamCount = liveCount; // sync local memory
-        localStorage.setItem('teamCount', liveCount); // sync localStorage
+        teamCount = liveCount; 
+        localStorage.setItem('teamCount', liveCount); 
         countEl.innerText = liveCount;
         return;
       }
@@ -3116,18 +2915,17 @@ return `
     }
   }
 
-  // Fallback if offline
   if (countEl) {
     countEl.innerText = Number(teamCount) || 0;
   }
 }
 
+function copyRefLink() {
+  navigator.clipboard.writeText(document.getElementById('refLinkText').value);
+  alert('Copied invitation link!');
+}
 
-    function copyRefLink() {
-      navigator.clipboard.writeText(document.getElementById('refLinkText').value);
-      alert('Copied invitation link!');
-    }
-   async function adminManualCreditUser() {
+async function adminManualCreditUser() {
     const phoneInput = document.getElementById('adminCreditPhone').value.trim();
     const amountInput = Number(document.getElementById('adminCreditAmount').value);
 
@@ -3170,7 +2968,6 @@ return `
         const currentBalance = userSnap.data().balance || 0;
         const currentWithdrawable = userSnap.data().withdrawableBalance || 0;
 
-        // Directly update balance and withdrawable balance
         await updateDoc(userRef, {
             balance: currentBalance + amountInput,
             withdrawableBalance: currentWithdrawable + amountInput
@@ -3187,165 +2984,161 @@ return `
     }
 }
  
-    function updateUI() {
-    window.summaryHtml = "";
-    window.contentHtml = "";
+function updateUI() {
     let safeBalance = Number(balance) || 0;
     
+    document.querySelectorAll('.userBalanceEl').forEach(el => el.innerText = 'UGX ' + safeBalance.toLocaleString());
+    let headerEl = document.getElementById('userBalanceHeader');
+    if (headerEl) headerEl.innerText = 'UGX ' + safeBalance.toLocaleString();
+      
+    let vipTierEl = document.getElementById('userVipTier');
+    if (vipTierEl) vipTierEl.innerText = vipTier;
+      
+    renderTeamView().catch(console.error);
     
-      document.querySelectorAll('.userBalanceEl').forEach(el => el.innerText = 'UGX ' + safeBalance.toLocaleString());
-      let headerEl = document.getElementById('userBalanceHeader');
-      if (headerEl) headerEl.innerText = 'UGX ' + safeBalance.toLocaleString();
-      
-      let vipTierEl = document.getElementById('userVipTier');
-      if (vipTierEl) vipTierEl.innerText = vipTier;
-      
-      renderTeamView().catch(console.error);
-      let container = document.getElementById('recordsContainer');
-if (container) {
-  // Calculate Totals First
-  let totalDeposits = 0;
-  let totalWithdrawals = 0;
+    let container = document.getElementById('recordsContainer');
+    if (!container) return;
+
+    let totalDeposits = 0;
+    let totalWithdrawals = 0;
   
-  if (Array.isArray(deposits)) {
-    deposits.forEach(d => {
-      let amt = getDepositAmount(d);
-      let status = (d.status || '').toLowerCase();
-      if (status === 'approved' || d.type === 'deposit') {
-        totalDeposits += amt;
-      }
-    });
-  }
+    if (Array.isArray(deposits)) {
+        deposits.forEach(d => {
+            let amt = getDepositAmount(d);
+            let status = (d.status || '').toLowerCase();
+            if (status === 'approved' || d.type === 'deposit') {
+                totalDeposits += amt;
+            }
+        });
+    }
   
-  if (Array.isArray(withdrawals)) {
-    withdrawals.forEach(w => {
-      let amt = Number(w.amount || w.rawAmount || 0);
-      let status = (w.status || '').toLowerCase();
-      if (status === 'approved' || status === 'successful' || status === 'succeed') {
-        totalWithdrawals += amt;
-      }
-    });
-  }
+    if (Array.isArray(withdrawals)) {
+        withdrawals.forEach(w => {
+            let amt = Number(w.amount || w.rawAmount || 0);
+            let status = (w.status || '').toLowerCase();
+            if (status === 'approved' || status === 'successful' || status === 'succeed') {
+                totalWithdrawals += amt;
+            }
+        });
+    }
 
-  // Summary Cards HTML header
-  let summaryHtml = `
-    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-      <div style="flex: 1; background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
-        <small style="color: var(--mut); font-size: 10px;">Total Deposits</small>
-        <div style="font-size: 14px; font-weight: 700; color: #10b981;">UGX ${totalDeposits.toLocaleString()}</div>
-      </div>
-      <div style="flex: 1; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2);">
-        <small style="color: var(--mut); font-size: 10px;">Total Withdrawals</small>
-        <div style="font-size: 14px; font-weight: 700; color: #ef4444;">UGX ${totalWithdrawals.toLocaleString()}</div>
-      </div>
-    </div>
-  `;
-
-  let contentHtml = '';
-
-  if (currentRecordTab === 'active') {
-    contentHtml = activeMachines.map((m, index) => {
-      let daysLeft = m.daysTotal - m.daysCounted;
-      let showReceiveBtn = (m.series === 'VIP' && (m.accrued || 0) > 0) || (m.series !== 'VIP' && m.daysCounted >= m.daysTotal && !m.claimed);
-
-      return `
-        <div style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); margin-bottom:10px;">
-          <div style="font-weight:800; font-size:13px; margin-bottom:8px; color:var(--text);">${m.name} ${m.claimed ? '(Completed)' : ''}</div>
-          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
-            <span>Days Counted:</span>
-            <span style="color:var(--text);">${m.daysCounted || 0} / ${m.daysTotal} days</span>
+    // Summary Cards HTML header
+    let summaryHtml = `
+        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+          <div style="flex: 1; background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+            <small style="color: var(--mut); font-size: 10px;">Total Deposits</small>
+            <div style="font-size: 14px; font-weight: 700; color: #10b981;">UGX ${totalDeposits.toLocaleString()}</div>
           </div>
-          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
-            <span>Days Left:</span>
-            <span style="color:var(--text);">${daysLeft} days</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
-            <span>Accrued Earnings:</span>
-            <span style="color:var(--accent); font-weight:700;">UGX ${(m.accrued || 0).toLocaleString()}</span>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:10px; color:var(--mut);">
-            <span>Total Cycle Income:</span>
-            <span style="color:var(--text); font-weight:700;">UGX ${m.totalCycle.toLocaleString()}</span>
-          </div>
-          ${showReceiveBtn ? `<button class="btn" style="padding:10px; font-size:12px;" onclick="receiveIncome(${index})">RECEIVE INCOME</button>` : ''}
-        </div>
-      `;
-    }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No active machines.</div>';
-
-  } else if (currentRecordTab === 'withdrawals') {
-    contentHtml = withdrawals.map((item, index) => {
-      let statusStr = (item.status || 'Pending').toLowerCase();
-      let statusMarkup = '';
-      
-      if (statusStr === 'pending') {
-        statusMarkup = `<div style="font-size:11px; color:#f59e0b; font-weight:600; text-align:right;">Pending<br><span style="color:#ef4444; cursor:pointer; text-decoration:underline;" onclick="cancelWithdrawal(${index})">Cancel</span></div>`;
-      } else if (statusStr === 'approved' || statusStr === 'successful' || statusStr === 'succeed') {
-        statusMarkup = `<div style="font-size:11px; color:#10b981; font-weight:600; text-align:right;">Approved</div>`;
-      } else if (statusStr === 'rejected' || statusStr === 'declined') {
-        statusMarkup = `<div style="font-size:11px; color:#ef4444; font-weight:600; text-align:right;">Rejected</div>`;
-      } else {
-        statusMarkup = `<div style="font-size:11px; color:var(--mut); text-align:line-through; text-align:right;">${item.status}</div>`;
-      }
-
-      let timeDisplay = item.time ? `${item.date || ''} at ${item.time}` : (item.date || new Date(item.timestamp || Date.now()).toLocaleDateString());
-
-      return `
-        <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-          <div>
-            <div style="font-weight:600; color:var(--text);">${item.desc || 'Withdrawal'}</div>
-            <small style="color:var(--mut); font-size:10px;">${timeDisplay}</small>
-            <div style="color:var(--danger); font-weight:700; margin-top:2px;">${item.amt || ('UGX ' + Number(item.amount || 0).toLocaleString())}</div>
-          </div>
-          <div>${statusMarkup}</div>
-        </div>
-      `;
-    }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No withdrawal history.</div>';
-
-  } else if (currentRecordTab === 'deposits') {
-    contentHtml = deposits.map(item => {
-      let amt = getDepositAmount(item);
-      let statusStr = (item.status || 'Pending').toLowerCase();
-      let badgeHtml = '';
-
-      if (statusStr === 'approved' || statusStr === 'successful') {
-        badgeHtml = `<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Approved</span>`;
-      } else if (statusStr === 'rejected' || statusStr === 'declined') {
-        badgeHtml = `<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Rejected</span>`;
-      } else {
-        badgeHtml = `<span style="color:#f59e0b; background:rgba(245,158,11,0.1); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Pending</span>`;
-      }
-
-      let timeDisplay = item.time ? `${item.date || ''} at ${item.time}` : (item.date || new Date(item.timestamp || Date.now()).toLocaleDateString());
-
-      return `
-        <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-          <div>
-            <div style="font-weight:600; color:var(--text);">${item.desc || 'Deposit'}</div>
-            <small style="color:var(--mut); font-size:10px;">${timeDisplay}</small>
-          </div>
-          <div style="text-align: right;">
-            <div style="color:#10b981; font-weight:700;">+UGX ${amt.toLocaleString()}</div>
-            <div style="margin-top:2px;">${badgeHtml}</div>
+          <div style="flex: 1; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2);">
+            <small style="color: var(--mut); font-size: 10px;">Total Withdrawals</small>
+            <div style="font-size: 14px; font-weight: 700; color: #ef4444;">UGX ${totalWithdrawals.toLocaleString()}</div>
           </div>
         </div>
-      `;
-    }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No deposit history.</div>';
+    `;
 
-  } else if (currentRecordTab === 'investments') {
-    contentHtml = investmentsList.map(item => `
-      <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-        <div>
-          <div style="font-weight:600; color:var(--text);">${item.name}</div>
-          <div style="color:var(--mut);">Daily: UGX ${item.daily.toLocaleString()}</div>
-        </div>
-        <b style="color:var(--text);">UGX ${item.price.toLocaleString()}</b>
-      </div>
-    `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No investment history.</div>';
-  }
-}
-   // Combine summary cards at the top + the active tab's list content
-  let summaryHtml = '';
-  container.innerHTML = summaryHtml + contentHtml;
+    let contentHtml = '';
+
+    if (currentRecordTab === 'active') {
+        contentHtml = activeMachines.map((m, index) => {
+            let daysLeft = m.daysTotal - m.daysCounted;
+            let isCompleted = m.isCycleCompleted || (m.daysCounted >= m.daysTotal);
+
+            return `
+                <div style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); margin-bottom:10px;">
+                  <div style="font-weight:800; font-size:13px; margin-bottom:8px; color:var(--text);">${m.name} ${isCompleted ? '(Completed)' : '(Auto-Running)'}</div>
+                  <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
+                    <span>Days Counted:</span>
+                    <span style="color:var(--text);">${m.daysCounted || 0} / ${m.daysTotal} days</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
+                    <span>Days Left:</span>
+                    <span style="color:var(--text);">${daysLeft} days</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:4px; color:var(--mut);">
+                    <span>Total Earned:</span>
+                    <span style="color:var(--accent); font-weight:700;">UGX ${(m.totalEarned || m.accrued || 0).toLocaleString()}</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--mut);">
+                    <span>Total Cycle Income:</span>
+                    <span style="color:var(--text); font-weight:700;">UGX ${m.totalCycle.toLocaleString()}</span>
+                  </div>
+                </div>
+            `;
+        }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No active machines.</div>';
+
+    } else if (currentRecordTab === 'withdrawals') {
+        contentHtml = withdrawals.map((item, index) => {
+            let statusStr = (item.status || 'Pending').toLowerCase();
+            let statusMarkup = '';
+            
+            if (statusStr === 'pending') {
+                statusMarkup = `<div style="font-size:11px; color:#f59e0b; font-weight:600; text-align:right;">Pending<br><span style="color:#ef4444; cursor:pointer; text-decoration:underline;" onclick="cancelWithdrawal(${index})">Cancel</span></div>`;
+            } else if (statusStr === 'approved' || statusStr === 'successful' || statusStr === 'succeed') {
+                statusMarkup = `<div style="font-size:11px; color:#10b981; font-weight:600; text-align:right;">Approved</div>`;
+            } else if (statusStr === 'rejected' || statusStr === 'declined') {
+                statusMarkup = `<div style="font-size:11px; color:#ef4444; font-weight:600; text-align:right;">Rejected</div>`;
+            } else {
+                statusMarkup = `<div style="font-size:11px; color:var(--mut); text-align:right;">${item.status}</div>`;
+            }
+
+            let timeDisplay = item.time ? `${item.date || ''} at ${item.time}` : (item.date || new Date(item.timestamp || Date.now()).toLocaleDateString());
+
+            return `
+                <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                  <div>
+                    <div style="font-weight:600; color:var(--text);">${item.desc || 'Withdrawal'}</div>
+                    <small style="color:var(--mut); font-size:10px;">${timeDisplay}</small>
+                    <div style="color:var(--danger); font-weight:700; margin-top:2px;">${item.amt || ('UGX ' + Number(item.amount || 0).toLocaleString())}</div>
+                  </div>
+                  <div>${statusMarkup}</div>
+                </div>
+            `;
+        }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No withdrawal history.</div>';
+
+    } else if (currentRecordTab === 'deposits') {
+        contentHtml = deposits.map(item => {
+            let amt = getDepositAmount(item);
+            let statusStr = (item.status || 'Pending').toLowerCase();
+            let badgeHtml = '';
+
+            if (statusStr === 'approved' || statusStr === 'successful') {
+                badgeHtml = `<span style="color:#10b981; background:rgba(16,185,129,0.1); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Approved</span>`;
+            } else if (statusStr === 'rejected' || statusStr === 'declined') {
+                badgeHtml = `<span style="color:#ef4444; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Rejected</span>`;
+            } else {
+                badgeHtml = `<span style="color:#f59e0b; background:rgba(245,158,11,0.1); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;">Pending</span>`;
+            }
+
+            let timeDisplay = item.time ? `${item.date || ''} at ${item.time}` : (item.date || new Date(item.timestamp || Date.now()).toLocaleDateString());
+
+            return `
+                <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                  <div>
+                    <div style="font-weight:600; color:var(--text);">${item.desc || 'Deposit'}</div>
+                    <small style="color:var(--mut); font-size:10px;">${timeDisplay}</small>
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="color:#10b981; font-weight:700;">+UGX ${amt.toLocaleString()}</div>
+                    <div style="margin-top:2px;">${badgeHtml}</div>
+                  </div>
+                </div>
+            `;
+        }).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No deposit history.</div>';
+
+    } else if (currentRecordTab === 'investments') {
+        contentHtml = investmentsList.map(item => `
+          <div style="background:var(--card); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+            <div>
+              <div style="font-weight:600; color:var(--text);">${item.name}</div>
+              <div style="color:var(--mut);">Daily: UGX ${item.daily.toLocaleString()}</div>
+            </div>
+            <b style="color:var(--text);">UGX ${item.price.toLocaleString()}</b>
+          </div>
+        `).join('') || '<div style="color:var(--mut); font-size:11px; text-align:center;">No investment history.</div>';
+    }
+
+    // Inject both summary header cards and the tab's list content together properly
+    container.innerHTML = summaryHtml + contentHtml;
 }
 
 
