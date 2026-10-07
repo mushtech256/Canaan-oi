@@ -1601,28 +1601,58 @@ async function executeAdminCorrection() {
     }
 
     try {
-        // If your platform uses Firebase for user records, target the user document
-        const { doc, getDoc, updateDoc } = window.firebaseFns;
-        
-        // Let's check local storage fallback or look up users array first
-        let users = JSON.parse(localStorage.getItem('all_platform_users') || '[]');
-        let targetUser = users.find(u => u.phone === memberId || u.id === memberId);
+        const { collection, query, where, getDocs, doc, updateDoc, increment } = window.firebaseFns;
+        const db = window.firebaseDb;
 
-        if (targetUser) {
-            targetUser.balance = Math.max(0, (targetUser.balance || 0) - deductAmount);
-            localStorage.setItem('all_platform_users', JSON.stringify(users));
-            alert(`Successfully cleared ${deductAmount} from member ${memberId}'s local ledger.`);
+        // Search for user by phone number or direct document ID
+        let userDocRef = null;
+        let userDocId = null;
+        let currentBalance = 0;
+
+        // Try querying by phone field first
+        const q = query(collection(db, "users"), where("phone", "==", memberId));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            querySnapshot.forEach((docSnap) => {
+                userDocId = docSnap.id;
+                currentBalance = Number(docSnap.data().balance || 0);
+            });
+            userDocRef = doc(db, "users", userDocId);
         } else {
-            // Try querying Firebase by phone or document ID directly if using Firebase database
-            alert("Member record updated successfully to prevent double withdrawal.");
+            // Fallback: try treating memberId as the direct document ID
+            userDocRef = doc(db, "users", memberId);
+            const directSnap = await getDoc(userDocRef);
+            if (directSnap.exists()) {
+                userDocId = directSnap.id;
+                currentBalance = Number(directSnap.data().balance || 0);
+            }
         }
 
-        // Clear inputs
+        if (!userDocRef || !userDocId) {
+            alert("Member not found in Firebase database with that phone/ID.");
+            return;
+        }
+
+        // Calculate new balance safely ensuring it doesn't go below 0
+        let newBalance = Math.max(0, currentBalance - deductAmount);
+
+        // Update Firestore document balance
+        await updateDoc(userDocRef, {
+            balance: newBalance
+        });
+
+        alert(`Successfully deducted ${deductAmount} from member ${memberId}. New balance: ${newBalance}`);
+        
+        // Clear inputs and refresh admin stats/lists
         document.getElementById('adminMemberId').value = '';
         document.getElementById('adminDeductAmount').value = '';
+        if (typeof loadAdminDashboardData === 'function') {
+            loadAdminDashboardData();
+        }
     } catch (e) {
-        console.error("Correction error:", e);
-        alert("Error executing balance correction: " + e.message);
+        console.error("Firebase Correction Error:", e);
+        alert("Error updating user balance: " + e.message);
     }
 }
 
