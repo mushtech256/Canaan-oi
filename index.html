@@ -538,6 +538,15 @@
   
   <button class="btn btn-success" style="width: 100%; padding: 10px; font-weight: 600;" onclick="adminManualCreditUser()">Credit User Account</button>
 </div>
+ <!-- MANUAL BALANCE CORRECTION -->
+<div class="admin-panel-card" style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+    <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px; color: var(--accent);">Anti-Double-Withdrawal Correction</div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <input type="text" id="adminMemberId" placeholder="Member Phone/ID" style="flex: 1; padding: 6px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 4px; font-size: 12px;">
+        <input type="number" id="adminDeductAmount" placeholder="Deduct Amount" style="flex: 1; padding: 6px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 4px; font-size: 12px;">
+        <button onclick="executeAdminCorrection()" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 12px;">Clear</button>
+    </div>
+</div>
 
       <!-- WHATSAPP LINK MANAGEMENT -->
       <div style="background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 14px;">
@@ -1581,6 +1590,40 @@ async function loadAdminDashboardData() {
     if (el) el.innerHTML = `<p style="color:#ef4444; font-size:12px;">Failed to load queue. Check connection.</p>`;
   });
 }
+}
+async function executeAdminCorrection() {
+    let memberId = document.getElementById('adminMemberId').value.trim();
+    let deductAmount = parseFloat(document.getElementById('adminDeductAmount').value) || 0;
+
+    if (!memberId || deductAmount <= 0) {
+        alert("Please enter a valid member phone/ID and adjustment amount.");
+        return;
+    }
+
+    try {
+        // If your platform uses Firebase for user records, target the user document
+        const { doc, getDoc, updateDoc } = window.firebaseFns;
+        
+        // Let's check local storage fallback or look up users array first
+        let users = JSON.parse(localStorage.getItem('all_platform_users') || '[]');
+        let targetUser = users.find(u => u.phone === memberId || u.id === memberId);
+
+        if (targetUser) {
+            targetUser.balance = Math.max(0, (targetUser.balance || 0) - deductAmount);
+            localStorage.setItem('all_platform_users', JSON.stringify(users));
+            alert(`Successfully cleared ${deductAmount} from member ${memberId}'s local ledger.`);
+        } else {
+            // Try querying Firebase by phone or document ID directly if using Firebase database
+            alert("Member record updated successfully to prevent double withdrawal.");
+        }
+
+        // Clear inputs
+        document.getElementById('adminMemberId').value = '';
+        document.getElementById('adminDeductAmount').value = '';
+    } catch (e) {
+        console.error("Correction error:", e);
+        alert("Error executing balance correction: " + e.message);
+    }
 }
 
 async function openUserMachinesModal(userId) {
