@@ -848,7 +848,7 @@
 })();
 
     const milestones = [
-  { target: 3, reward: 15000, level: 'VIP 1' },
+  { target: 5, reward: 15000, level: 'VIP 1' },
   { target: 10, reward: 30000, level: 'VIP 2' },
   { target: 25, reward: 50000, level: 'VIP 3' },
   { target: 40, reward: 100000, level: 'VIP 4' }
@@ -1359,6 +1359,42 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
     alert("Login Error: " + error.message);
   }
     }
+    
+  async function checkAndAutoClaimMilestones(userData, userId) {
+    if (!userData.claimedMilestones) {
+        userData.claimedMilestones = [];
+    }
+
+    let activeInvestors = Number(userData.teamCount || userData.referralCount || 0);
+    let totalBalanceAdd = 0;
+    let newlyClaimedTiers = [];
+
+    const milestones = [
+        { tier: 1, required: 5, reward: 15000 }, // Updated to 5 successfully
+        { tier: 2, required: 10, reward: 30000 },
+        { tier: 3, required: 25, reward: 50000 },
+        { tier: 4, required: 40, reward: 100000 }
+    ];
+
+    milestones.forEach(m => {
+        if (activeInvestors >= m.required && !userData.claimedMilestones.includes(m.tier)) {
+            totalBalanceAdd += m.reward;
+            newlyClaimedTiers.push(m.tier);
+        }
+    });
+
+    if (totalBalanceAdd > 0) {
+        const { doc, updateDoc, increment } = window.firebaseFns;
+        const userRef = doc(window.firebaseDb, "users", userId);
+
+        await updateDoc(userRef, {
+            balance: increment(totalBalanceAdd),
+            claimedMilestones: [...userData.claimedMilestones, ...newlyClaimedTiers]
+        });
+
+        console.log(`Automatically credited UGX ${totalBalanceAdd} for hitting referral milestones!`);
+    }
+}
 
     async function loadUserData() {
   const { doc, getDoc } = window.firebaseFns;
@@ -1384,7 +1420,7 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
     claimedMilestones = data.claimedMilestones || [];
     referredByCode = data.referredBy || '';
     isBanned = !!data.isBanned;
-
+    await checkAndAutoClaimMilestones(data, currentUserId);
     processActiveMachinesProgress();
     processWithdrawalsTimeout();
     
