@@ -2386,16 +2386,35 @@ if (!userId) {
       let updated = false;
       let totalIncrement = 0;
 
-      for (let m of activeMachines) {
+            for (let m of activeMachines) {
+        let totalDays = m.daysTotal || 30;
+        let daysCounted = m.daysCounted || 0;
+
+        // Catch-up check for machines that completed their days but haven't credited final payout yet
+        if (daysCounted >= totalDays && !m._finalPayoutCredited) {
+          let fullCycleIncome = (m.daily || 0) * totalDays;
+          let alreadyEarned = m.totalEarned || 0;
+          let remainingPayout = Math.max(0, fullCycleIncome - alreadyEarned);
+          
+          if (remainingPayout > 0) {
+            totalIncrement += remainingPayout;
+            m.totalEarned = fullCycleIncome;
+            updated = true;
+          }
+          m.isCycleCompleted = true;
+          m.claimed = true;
+          m._finalPayoutCredited = true;
+        }
+
         if (m.isCycleCompleted || m.claimed) continue;
         
         let lastCheck = m.lastCheckTime || m.purchaseDate || now;
         let lastCheckDate = new Date(lastCheck);
-        let totalDays = m.daysTotal || 30;
-        let daysCounted = m.daysCounted || 0;
         let isH = m.isHSeries || (m.name && /^h\d/i.test(m.name.trim()));
 
         if (isH) {
+          // ... rest of your H-Series code ...
+          
           // --- H-SERIES: Exact 24-Hour Rolling Interval ---
           let hoursPassed = (now - lastCheck) / (1000 * 60 * 60);
           if (hoursPassed >= 24 && daysCounted < totalDays) {
@@ -2794,17 +2813,19 @@ if (tab.includes('deposit') || tab.includes('withdrawal')) {
     if (!Array.isArray(machines) || machines.length === 0) {
       contentHtml = `<div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 12px;">No active machines found.</div>`;
     } else {
-machines.forEach(m => {
-    let isH = m.name && /^h\d/i.test(m.name.trim());
-    // If it's an H-series machine and was bought earlier today/previously without a valid older timestamp, 
-    // or if you want to explicitly preserve its real purchase time:
-    if (isH && m.name.includes('H2') && (!m.purchaseDate || (Date.now() - m.purchaseDate) > 86400000)) {
-        // Set it back by 6 hours so it shows ~18h remaining
-        m.purchaseDate = Date.now() - (6 * 60 * 60 * 1000);
+     machines.forEach((m, idx) => {
+    // If it lacks a purchase date, assign one spaced out properly
+    if (!m.purchaseDate) {
+        // Adding hours instead of subtracting keeps the next payout in the future
+        m.purchaseDate = Date.now() - ((24 - (idx * 3)) * 60 * 60 * 1000); 
+        m.lastCheckTime = m.purchaseDate;
     }
 });
 
-      contentHtml = machines.map((m) => {
+
+
+
+      contentHtml = machines.map((m, idx) => {
         let daysCounted = m.daysCounted || 0;
         let daysTotal = m.daysTotal || 30;
         let daysLeft = Math.max(0, daysTotal - daysCounted);
@@ -2812,12 +2833,13 @@ machines.forEach(m => {
         let isCompleted = m.isCycleCompleted || daysCounted >= daysTotal;
         let isH = m.isHSeries || (m.name && /^h\d/i.test(m.name.trim()));
 
-        let lastCheck = m.lastCheckTime || m.purchaseDate || Date.now();
+        let lastCheck = m.lastCheckTime || m.purchaseDate || 0;
         let nextPayoutTime = lastCheck + (24 * 60 * 60 * 1000);
         let timeLeftMs = Math.max(0, nextPayoutTime - Date.now());
         let hoursLeft = Math.floor(timeLeftMs / (1000 * 60 * 60));
         let minsLeft = Math.floor((timeLeftMs % (1000 * 60 * 60)) / (1000 * 60));
-
+        let secsLeft = Math.floor((timeLeftMs % (1000 * 60)) / 1000);
+        
         return `
           <div style="background: #1e293b; padding: 14px; margin-bottom: 12px; border-radius: 8px;">
             <div style="font-weight: 700; font-size: 14px; margin-bottom: 8px; display: flex; justify-content: space-between;">
@@ -2836,11 +2858,10 @@ machines.forEach(m => {
               <span style="color: #94a3b8;">Total Cycle Income:</span>
               <span style="color: #10b981; font-weight: 600;">UGX ${totalCycle.toLocaleString()}</span>
             </div>
-            
-            ${isH && !isCompleted ? `
+                        ${isH && !isCompleted ? `
               <div style="margin-top: 8px; font-size: 11px; background: rgba(16, 185, 129, 0.1); padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #94a3b8;">Next Automated Payout:</span>
-                <span style="color: #10b981; font-weight: 700;">${hoursLeft}h${minsLeft}m</span>
+                <span style="color: #10b981; font-weight: 700;">${hoursLeft}h ${minsLeft}m${secsLeft}s</span>
               </div>
             ` : ''}
           </div>
@@ -2848,6 +2869,8 @@ machines.forEach(m => {
       }).join('');
       
     }
+    
+            
   } else {
     let dataArray = [];
     if (tab.includes('deposit')) {
@@ -2862,6 +2885,13 @@ machines.forEach(m => {
       contentHtml = `<div style="text-align: center; padding: 30px; color: #94a3b8; font-size: 12px;">No records found.</div>`;
     } else {
       contentHtml = dataArray.map((item, idx) => {
+      let now = Date.now();
+let targetTime = item.nextPayoutTime || (item.timestamp + 86400000); // or your specific target time field
+let timeLeft = Math.max(0, targetTime - now);
+let hoursLeft = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
+let minsLeft = Math.floor((timeLeft / (1000 * 60)) % 60);
+let secsLeft = Math.floor((timeLeft / 1000) % 60);
+
         let isPending = (item.status || '').toLowerCase() === 'pending';
         let statusColor = isPending ? '#f59e0b' : ((item.status || '').toLowerCase() === 'cancelled' ? '#ef4444' : '#10b981');
         let displayAmt = item.amt || (item.amount ? `UGX ${Number(item.amount).toLocaleString()}` : '');
@@ -2887,7 +2917,16 @@ machines.forEach(m => {
 
   container.innerHTML = summaryHtml + contentHtml;
 }
-
+// Automatically refresh the active machines list every 1 second to make seconds tick live
+setInterval(() => {
+  // Check if the current record tab is active/visible
+  let tab = (typeof currentRecordTab !== 'undefined' ? currentRecordTab : '').toLowerCase();
+  if (tab === 'active' || tab.includes('active')) {
+    if (typeof renderRecordsList === 'function') {
+      renderRecordsList();
+    }
+  }
+}, 1000);
 
     async function renderTeamView() {
   const refLinkInput = document.getElementById('refLinkText');
