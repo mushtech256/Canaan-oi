@@ -1359,14 +1359,14 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
     alert("Login Error: " + error.message);
   }
     }
-   async function checkAndAutoClaimMilestones(userData, userId) {
+ async function checkAndAutoClaimMilestones(userData, userId) {
     if (!userData.claimedMilestones) {
         userData.claimedMilestones = [];
     }
 
     let activeInvestors = Number(userData.teamCount || userData.referralCount || 0);
 
-    // Define milestones matching your UI
+    // Define milestones in correct ascending order
     const milestones = [
         { tier: 1, required: 5, reward: 15000 },
         { tier: 2, required: 10, reward: 30000 },
@@ -1374,32 +1374,25 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
         { tier: 4, required: 40, reward: 100000 }
     ];
 
-    // Sort milestones from highest required to lowest so we check top tiers first
-    milestones.sort((a, b) => b.required - a.required);
+    // Find all tiers the user qualifies for that haven't been claimed yet
+    let unclaimedQualified = milestones.filter(m => activeInvestors >= m.required && !userData.claimedMilestones.includes(m.tier));
 
-    let tierToClaim = null;
+    if (unclaimedQualified.length > 0) {
+        // Pick ONLY the highest tier among the ones they qualify for
+        let highestTierToClaim = unclaimedQualified.reduce((prev, current) => (prev.tier > current.tier) ? prev : current);
 
-    for (let m of milestones) {
-        // Find the highest tier they qualify for and haven't claimed yet
-        if (activeInvestors >= m.required && !userData.claimedMilestones.includes(m.tier)) {
-            tierToClaim = m;
-            break; // Stop at the highest single tier so it doesn't stack lower ones
-        }
-    }
-
-    if (tierToClaim) {
         const { doc, updateDoc, increment } = window.firebaseFns;
         const userRef = doc(window.firebaseDb, "users", userId);
 
         await updateDoc(userRef, {
-            balance: increment(tierToClaim.reward),
-            claimedMilestones: [...userData.claimedMilestones, tierToClaim.tier]
+            balance: increment(highestTierToClaim.reward),
+            claimedMilestones: [...userData.claimedMilestones, highestTierToClaim.tier]
         });
 
-        console.log(`Automatically credited UGX ${tierToClaim.reward} for reaching VIP tier ${tierToClaim.tier}!`);
+        console.log(`Successfully credited UGX ${highestTierToClaim.reward} for exact VIP tier ${highestTierToClaim.tier}!`);
     }
 }
- 
+
       async function loadUserData() {
   const { doc, getDoc } = window.firebaseFns;
     if (!currentUserId) {
