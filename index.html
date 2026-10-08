@@ -3282,26 +3282,90 @@ setInterval(() => {
     refLinkInput.value = window.location.origin + window.location.pathname + '?ref=' + (inviteCode || '');
   }
 
-  if (countEl && window.firebaseDb && window.currentUser) {
-    try {
-      const { doc, getDoc } = window.firebaseFns;
-      const userDocRef = doc(window.firebaseDb, "users", window.currentUser.uid);
-      const userDocSnap = await getDoc(userDocRef);
+  try {
+    const { collection, query, where, getDocs } = window.firebaseFns;
+    const db = window.firebaseDb;
 
-      if (userDocSnap.exists()) {
-        const liveCount = userDocSnap.data().teamCount || 0;
-        teamCount = liveCount; 
-        localStorage.setItem('teamCount', liveCount); 
-        countEl.innerText = liveCount;
-        return;
-      }
-    } catch (e) {
-      console.error("Error loading team count:", e);
+    if (!inviteCode) {
+      if (countEl) countEl.innerText = '0';
+      return;
     }
-  }
 
-  if (countEl) {
-    countEl.innerText = Number(teamCount) || 0;
+    // Query all users referred by this user
+    const q = query(collection(db, "users"), where("referredBy", "==", inviteCode));
+    const querySnapshot = await getDocs(q);
+
+    let activeTeamCount = 0;
+    let membersHtml = '';
+
+    querySnapshot.forEach((docSnap) => {
+      const memberData = docSnap.data();
+      const phone = memberData.phone || 'Unknown Phone';
+
+      // Check if they have purchased at least one machine
+      const machines = Array.isArray(memberData.activeMachines) ? memberData.activeMachines : (Array.isArray(memberData.investmentsList) ? memberData.investmentsList : []);
+      
+      // Strict rule: Only include if they have at least 1 machine purchased
+      if (machines.length > 0) {
+        activeTeamCount++;
+
+        membersHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05);">
+            <div>
+              <div style="font-weight: 600; font-size: 13px; color: #fff;">📱 ${phone}</div>
+              <div style="font-size: 11px; color: #10b981; margin-top: 2px;">
+                Active Machines: ${machines.length}
+              </div>
+            </div>
+            <div>
+              <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">🟢 Active</span>
+            </div>
+          </div>
+        `;
+      }
+    });
+
+    // Update the counter on the top card to show only active machine buyers
+    if (countEl) {
+      countEl.innerText = activeTeamCount;
+    }
+
+    // Target the team tab content area securely
+    // Replace 'teamContainer' or 'v-team' with whatever container holds your team view layout
+    const teamViewSection = document.getElementById('v-team') || document.getElementById('teamContainer') || document.querySelector('.team-section') || document.body;
+    
+    let listWrapper = document.getElementById('dynamicTeamListWrapper');
+    if (!listWrapper) {
+      listWrapper = document.createElement('div');
+      listWrapper.id = 'dynamicTeamListWrapper';
+      listWrapper.style.marginTop = '16px';
+      listWrapper.style.padding = '0 16px';
+      
+      // Append right below the invitation link box or at the bottom of the section
+      if (refLinkInput && refLinkInput.closest('div')) {
+        refLinkInput.closest('div').parentNode.appendChild(listWrapper);
+      } else {
+        teamViewSection.appendChild(listWrapper);
+      }
+    }
+
+    listWrapper.innerHTML = `
+      <div style="background: #1e293b; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 13px; font-weight: bold; color: #fff;">
+          <span>👥 Active Team Members (Machine Owners)</span>
+          <span style="color: #10b981;">Total: ${activeTeamCount}</span>
+        </div>
+        <div style="max-height: 280px; overflow-y: auto;">
+          ${membersHtml || '<p style="color: var(--mut); font-size: 12px; text-align: center; padding: 10px;">No team members have purchased a machine yet.</p>'}
+        </div>
+      </div>
+    `;
+
+  } catch (e) {
+    console.error("Error loading active team view:", e);
+    if (countEl) {
+      countEl.innerText = '0';
+    }
   }
 }
 
