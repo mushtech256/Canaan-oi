@@ -848,11 +848,12 @@
 })();
 
     const milestones = [
-  { target: 5, reward: 15000, level: 'VIP 1' },
-  { target: 10, reward: 30000, level: 'VIP 2' },
-  { target: 25, reward: 50000, level: 'VIP 3' },
-  { target: 40, reward: 100000, level: 'VIP 4' }
+    { level: "VIP 1", tier: 1, target: 5, required: 5, reward: 15000 },
+    { level: "VIP 2", tier: 2, target: 10, required: 10, reward: 30000 },
+    { level: "VIP 3", tier: 3, target: 25, required: 25, reward: 50000 },
+    { level: "VIP 4", tier: 4, target: 40, required: 40, reward: 100000 }
 ];
+
 
 function renderVipTaskPage() {
   const container = document.getElementById('vipMilestonesContainer');
@@ -1359,7 +1360,39 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
     alert("Login Error: " + error.message);
   }
     }
- 
+ async function checkAndAutoClaimMilestones(userData, userId) {
+    if (!userData.claimedMilestones) {
+        userData.claimedMilestones = [];
+    }
+
+    let activeInvestors = Number(userData.teamCount || userData.referralCount || 0);
+    let rewardToAdd = 0;
+    let earnedTier = null;
+
+    // Check from highest requirement to lowest requirement
+    const sortedMilestones = [...milestones].sort((a, b) => b.required - a.required);
+
+    for (let m of sortedMilestones) {
+        if (activeInvestors >= m.required && !userData.claimedMilestones.includes(m.tier)) {
+            earnedTier = m.tier;
+            rewardToAdd = m.reward;
+            break; // Grab strictly the single highest unclaimed tier
+        }
+    }
+
+    if (earnedTier !== null && rewardToAdd > 0) {
+        const { doc, updateDoc, increment } = window.firebaseFns;
+        const userRef = doc(window.firebaseDb, "users", userId);
+
+        await updateDoc(userRef, {
+            balance: increment(rewardToAdd),
+            claimedMilestones: [...userData.claimedMilestones, earnedTier]
+        });
+
+        console.log(`Successfully credited UGX ${rewardToAdd} for hitting VIP Tier ${earnedTier}!`);
+    }
+}
+
 
       async function loadUserData() {
   const { doc, getDoc } = window.firebaseFns;
