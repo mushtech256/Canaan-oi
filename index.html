@@ -1359,43 +1359,7 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
     alert("Login Error: " + error.message);
   }
     }
- async function checkAndAutoClaimMilestones(userData, userId) {
-    if (!userData.claimedMilestones) {
-        userData.claimedMilestones = [];
-    }
-
-    let activeInvestors = Number(userData.teamCount || userData.referralCount || 0);
-    let rewardToAdd = 0;
-    let earnedTier = null;
-
-    // Direct check for each tier based strictly on the required count
-    if (activeInvestors = 40 && !userData.claimedMilestones.includes(4)) {
-        earnedTier = 4;
-        rewardToAdd = 100000;
-    } else if (activeInvestors = 25 && !userData.claimedMilestones.includes(3)) {
-        earnedTier = 3;
-        rewardToAdd = 50000;
-    } else if (activeInvestors = 10 && !userData.claimedMilestones.includes(2)) {
-        earnedTier = 2;
-        rewardToAdd = 30000;
-    } else if (activeInvestors = 5 && !userData.claimedMilestones.includes(1)) {
-        earnedTier = 1;
-        rewardToAdd = 15000;
-    }
-
-    // If a valid un-claimed tier reward is found, update Firebase
-    if (earnedTier !== null && rewardToAdd > 0) {
-        const { doc, updateDoc, increment } = window.firebaseFns;
-        const userRef = doc(window.firebaseDb, "users", userId);
-
-        await updateDoc(userRef, {
-            balance: increment(rewardToAdd),
-            claimedMilestones: [...userData.claimedMilestones, earnedTier]
-        });
-
-        console.log(`Credited UGX ${rewardToAdd} for hitting VIP Tier ${earnedTier}!`);
-    }
-}
+ 
 
       async function loadUserData() {
   const { doc, getDoc } = window.firebaseFns;
