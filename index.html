@@ -1917,6 +1917,42 @@ async function adminLookupUser() {
         resultContainer.innerHTML = `<span style="color:#ef4444;">Error looking up user: ${err.message}</span>`;
     }
 }
+async function adminDeleteUserMachine(userId, machineIndex) {
+    if (!confirm("Are you sure you want to delete this machine from the user's account?")) {
+        return;
+    }
+
+    try {
+        const { doc, getDoc, updateDoc } = window.firebaseFns;
+        const userRef = doc(window.firebaseDb, "users", userId);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
+            alert("User document not found.");
+            return;
+        }
+
+        const data = userSnap.data();
+        let machines = data.activeMachines || data.investmentsList || [];
+
+        if (machines.length > machineIndex) {
+            machines.splice(machineIndex, 1);
+
+            await updateDoc(userRef, {
+                activeMachines: machines,
+                investmentsList: machines
+            });
+
+            alert("🗑️ Machine successfully deleted from user account!");
+            adminLookupUser(); // Refresh the lookup view automatically
+        } else {
+            alert("Machine index out of range.");
+        }
+    } catch (err) {
+        console.error("Error deleting machine:", err);
+        alert("Failed to delete machine: " + err.message);
+    }
+}
 
 
 // Submit user apology for banned accounts
