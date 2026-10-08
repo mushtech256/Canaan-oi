@@ -3291,26 +3291,35 @@ setInterval(() => {
       return;
     }
 
-    // Query all users referred by this user
+    // Query all users referred by this user using their invite code
     const q = query(collection(db, "users"), where("referredBy", "==", inviteCode));
     const querySnapshot = await getDocs(q);
 
     let activeTeamCount = 0;
-    let membersHtml = '';
+    let inactiveTeamCount = 0;
+    let activeMembersHtml = '';
+    let inactiveMembersHtml = '';
 
     querySnapshot.forEach((docSnap) => {
-      const memberData = docSnap.data();
-      const phone = memberData.phone || 'Unknown Phone';
+      const data = docSnap.data();
 
-      // Check if they have purchased at least one machine
-      const machines = Array.isArray(memberData.activeMachines) ? memberData.activeMachines : (Array.isArray(memberData.investmentsList) ? memberData.investmentsList : []);
-      
-      // Strict rule: Only include if they have at least 1 machine purchased
-      if (machines.length > 0) {
+      // 1. Correctly extract phone number by checking all common field variations
+      const phone = data.phone || data.phoneNumber || data.phoneNum || data.mobile || data.tel || 'No Phone Recorded';
+
+      // 2. Correctly extract active machines by checking all common array variations
+      const machines = Array.isArray(data.activeMachines) ? data.activeMachines 
+                     : Array.isArray(data.machines) ? data.machines 
+                     : Array.isArray(data.investmentsList) ? data.investmentsList 
+                     : Array.isArray(data.investments) ? data.investments 
+                     : [];
+
+      // Check if they have at least one machine purchased
+      const hasPurchasedMachine = machines.length > 0;
+
+      if (hasPurchasedMachine) {
         activeTeamCount++;
-
-        membersHtml += `
-          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05);">
+        activeMembersHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(16, 185, 129, 0.05); padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
             <div>
               <div style="font-weight: 600; font-size: 13px; color: #fff;">📱 ${phone}</div>
               <div style="font-size: 11px; color: #10b981; margin-top: 2px;">
@@ -3322,16 +3331,30 @@ setInterval(() => {
             </div>
           </div>
         `;
+      } else {
+        inactiveTeamCount++;
+        inactiveMembersHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(239, 68, 68, 0.05); padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid rgba(239, 68, 68, 0.2);">
+            <div>
+              <div style="font-weight: 600; font-size: 13px; color: #fff;">📱 ${phone}</div>
+              <div style="font-size: 11px; color: #ef4444; margin-top: 2px;">
+                No machines purchased yet
+              </div>
+            </div>
+            <div>
+              <span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;">🔴 Inactive</span>
+            </div>
+          </div>
+        `;
       }
     });
 
-    // Update the counter on the top card to show only active machine buyers
+    // Update main counter card to show active machine-owning members
     if (countEl) {
       countEl.innerText = activeTeamCount;
     }
 
-    // Target the team tab content area securely
-    // Replace 'teamContainer' or 'v-team' with whatever container holds your team view layout
+    // Render team overview layout dynamically
     const teamViewSection = document.getElementById('v-team') || document.getElementById('teamContainer') || document.querySelector('.team-section') || document.body;
     
     let listWrapper = document.getElementById('dynamicTeamListWrapper');
@@ -3341,7 +3364,6 @@ setInterval(() => {
       listWrapper.style.marginTop = '16px';
       listWrapper.style.padding = '0 16px';
       
-      // Append right below the invitation link box or at the bottom of the section
       if (refLinkInput && refLinkInput.closest('div')) {
         refLinkInput.closest('div').parentNode.appendChild(listWrapper);
       } else {
@@ -3352,17 +3374,24 @@ setInterval(() => {
     listWrapper.innerHTML = `
       <div style="background: #1e293b; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 13px; font-weight: bold; color: #fff;">
-          <span>👥 Active Team Members (Machine Owners)</span>
-          <span style="color: #10b981;">Total: ${activeTeamCount}</span>
+          <span>👥 Team Overview</span>
+          <span><span style="color: #10b981;">Active: ${activeTeamCount}</span> | <span style="color: #ef4444;">Inactive: ${inactiveTeamCount}</span></span>
         </div>
-        <div style="max-height: 280px; overflow-y: auto;">
-          ${membersHtml || '<p style="color: var(--mut); font-size: 12px; text-align: center; padding: 10px;">No team members have purchased a machine yet.</p>'}
+
+        <div style="font-size: 12px; font-weight: bold; color: #10b981; margin: 10px 0 6px 0;">⚡ Active Investors (${activeTeamCount})</div>
+        <div style="max-height: 200px; overflow-y: auto; margin-bottom: 12px;">
+          ${activeMembersHtml || '<p style="color: var(--mut); font-size: 11px; padding: 6px;">No active members yet.</p>'}
+        </div>
+
+        <div style="font-size: 12px; font-weight: bold; color: #ef4444; margin: 10px 0 6px 0;">⏳ Inactive Members (${inactiveTeamCount})</div>
+        <div style="max-height: 200px; overflow-y: auto;">
+          ${inactiveMembersHtml || '<p style="color: var(--mut); font-size: 11px; padding: 6px;">No inactive members found.</p>'}
         </div>
       </div>
     `;
 
   } catch (e) {
-    console.error("Error loading active team view:", e);
+    console.error("Error loading team view data:", e);
     if (countEl) {
       countEl.innerText = '0';
     }
