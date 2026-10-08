@@ -1408,7 +1408,7 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
 
       async function loadUserData() {
   const { doc, getDoc } = window.firebaseFns;
-    if (!currentUserId) {
+  if (!currentUserId) {
     currentUserId = localStorage.getItem('canaan_userId');
   }
   if (!currentUserId) return;
@@ -1416,12 +1416,12 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
   if (docSnap.exists()) {
     let data = docSnap.data();
 
-if (data.isBanned && data.phone !== adminPhoneKey) {
-    alert("❌ Your account has been permanently banned due to a violation of company rules and terms of service.");
-    localStorage.removeItem('canaan_userid');
-    window.location.reload();
-    return;
-}
+    if (data.isBanned && data.phone !== adminPhoneKey) {
+        alert("❌ Your account has been permanently banned due to a violation of company rules and terms of service.");
+        localStorage.removeItem('canaan_userid');
+        window.location.reload();
+        return;
+    }
 
     currentUserPhone = data.phone || '';
     balance = Number(data.balance) || 0;
@@ -1438,17 +1438,18 @@ if (data.isBanned && data.phone !== adminPhoneKey) {
     claimedMilestones = data.claimedMilestones || [];
     referredByCode = data.referredBy || '';
     isBanned = !!data.isBanned;
-    await checkAndAutoClaimMilestones(data, currentUserId);
+    
+    // Automatic milestone check removed as requested
     processActiveMachinesProgress();
     processWithdrawalsTimeout();
     
     // Update countdown timers live every 1 second when the app is open
-setInterval(() => {
-  let activeTab = (currentRecordTab || '').toLowerCase();
-  if (activeTab.includes('active') && document.getElementById('v-records').classList.contains('active')) {
-    renderRecordsList();
-  }
-}, 1000);
+    setInterval(() => {
+      let activeTab = (currentRecordTab || '').toLowerCase();
+      if (activeTab.includes('active') && document.getElementById('v-records').classList.contains('active')) {
+        renderRecordsList();
+      }
+    }, 1000);
 
     document.getElementById('authContainer').style.display = 'none';
     document.getElementById('appContainer').style.display = 'block';
@@ -1472,6 +1473,7 @@ setInterval(() => {
     renderTeamView();
   }
 }
+
 async function loadAdminDashboardData() {
   try {
     const { collection, getDocs } = window.firebaseFns;
