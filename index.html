@@ -1365,31 +1365,35 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
     }
 
     let activeInvestors = Number(userData.teamCount || userData.referralCount || 0);
+    let rewardToAdd = 0;
+    let earnedTier = null;
 
-    // Define milestones in correct ascending order
-    const milestones = [
-        { tier: 1, required: 5, reward: 15000 },
-        { tier: 2, required: 10, reward: 30000 },
-        { tier: 3, required: 25, reward: 50000 },
-        { tier: 4, required: 40, reward: 100000 }
-    ];
+    // Direct check for each tier based strictly on the required count
+    if (activeInvestors >= 40 && !userData.claimedMilestones.includes(4)) {
+        earnedTier = 4;
+        rewardToAdd = 100000;
+    } else if (activeInvestors >= 25 && !userData.claimedMilestones.includes(3)) {
+        earnedTier = 3;
+        rewardToAdd = 50000;
+    } else if (activeInvestors >= 10 && !userData.claimedMilestones.includes(2)) {
+        earnedTier = 2;
+        rewardToAdd = 30000;
+    } else if (activeInvestors >= 5 && !userData.claimedMilestones.includes(1)) {
+        earnedTier = 1;
+        rewardToAdd = 15000;
+    }
 
-    // Find all tiers the user qualifies for that haven't been claimed yet
-    let unclaimedQualified = milestones.filter(m => activeInvestors >= m.required && !userData.claimedMilestones.includes(m.tier));
-
-    if (unclaimedQualified.length > 0) {
-        // Pick ONLY the highest tier among the ones they qualify for
-        let highestTierToClaim = unclaimedQualified.reduce((prev, current) => (prev.tier > current.tier) ? prev : current);
-
+    // If a valid un-claimed tier reward is found, update Firebase
+    if (earnedTier !== null && rewardToAdd > 0) {
         const { doc, updateDoc, increment } = window.firebaseFns;
         const userRef = doc(window.firebaseDb, "users", userId);
 
         await updateDoc(userRef, {
-            balance: increment(highestTierToClaim.reward),
-            claimedMilestones: [...userData.claimedMilestones, highestTierToClaim.tier]
+            balance: increment(rewardToAdd),
+            claimedMilestones: [...userData.claimedMilestones, earnedTier]
         });
 
-        console.log(`Successfully credited UGX ${highestTierToClaim.reward} for exact VIP tier ${highestTierToClaim.tier}!`);
+        console.log(`Credited UGX ${rewardToAdd} for hitting VIP Tier ${earnedTier}!`);
     }
 }
 
