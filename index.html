@@ -1369,14 +1369,22 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
     let rewardToAdd = 0;
     let earnedTier = null;
 
-    // Check from highest requirement to lowest requirement
-    const sortedMilestones = [...milestones].sort((a, b) => b.required - a.required);
+    // Defined directly here so it never depends on external variables
+    const milestones = [
+        { tier: 1, required: 5, reward: 15000 },
+        { tier: 2, required: 10, reward: 30000 },
+        { tier: 3, required: 25, reward: 50000 },
+        { tier: 4, required: 40, reward: 100000 }
+    ];
+
+    // Sort from highest requirement to lowest
+    const sortedMilestones = milestones.sort((a, b) => b.required - a.required);
 
     for (let m of sortedMilestones) {
         if (activeInvestors >= m.required && !userData.claimedMilestones.includes(m.tier)) {
             earnedTier = m.tier;
             rewardToAdd = m.reward;
-            break; // Grab strictly the single highest unclaimed tier
+            break; // Stop at the highest single tier
         }
     }
 
@@ -1392,7 +1400,6 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
         console.log(`Successfully credited UGX ${rewardToAdd} for hitting VIP Tier ${earnedTier}!`);
     }
 }
-
 
       async function loadUserData() {
   const { doc, getDoc } = window.firebaseFns;
