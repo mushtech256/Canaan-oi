@@ -1369,16 +1369,16 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
     let earnedTier = null;
 
     // Direct check for each tier based strictly on the required count
-    if (activeInvestors >= 40 && !userData.claimedMilestones.includes(4)) {
+    if (activeInvestors = 40 && !userData.claimedMilestones.includes(4)) {
         earnedTier = 4;
         rewardToAdd = 100000;
-    } else if (activeInvestors >= 25 && !userData.claimedMilestones.includes(3)) {
+    } else if (activeInvestors = 25 && !userData.claimedMilestones.includes(3)) {
         earnedTier = 3;
         rewardToAdd = 50000;
-    } else if (activeInvestors >= 10 && !userData.claimedMilestones.includes(2)) {
+    } else if (activeInvestors = 10 && !userData.claimedMilestones.includes(2)) {
         earnedTier = 2;
         rewardToAdd = 30000;
-    } else if (activeInvestors >= 5 && !userData.claimedMilestones.includes(1)) {
+    } else if (activeInvestors = 5 && !userData.claimedMilestones.includes(1)) {
         earnedTier = 1;
         rewardToAdd = 15000;
     }
