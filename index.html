@@ -629,6 +629,18 @@
     <button class="btn" style="padding:8px 12px; background:#ff9800; color:#000; font-weight:bold; font-size:11px; width:auto;" onclick="sendAdminBroadcast()">Broadcast</button>
   </div>
 </div>
+<div id="adminUserLookupSection" style="background:#1e293b; border-radius:12px; padding:16px; margin-top:16px; border:1px solid #334155;">
+  <h3 style="color:#f59e0b; margin:0 0 12px 0; font-size:16px;">🔍 User Deep-Dive Lookup</h3>
+  <div style="display:flex; gap:8px; margin-bottom:12px;">
+    <input type="text" id="adminSearchPhone" placeholder="Enter phone (e.g. 07...)" style="flex:1; background:#0f172a; border:1px solid #475569; color:#fff; padding:8px 12px; border-radius:8px;">
+    <button onclick="adminLookupUser()" style="background:#10b981; color:#fff; border:none; padding:8px 16px; border-radius:8px; font-weight:bold; cursor:pointer;">Search</button>
+  </div>
+  
+  <!-- Results Container -->
+  <div id="adminLookupResult" style="display:none; background:#0f172a; padding:12px; border-radius:8px; font-size:13px; color:#cbd5e1; max-height:400px; overflow-y:auto;">
+    <!-- Dynamic user details will populate here -->
+  </div>
+</div>
 
 <!-- USER LOOKUP & CONTROL -->
 
@@ -1410,6 +1422,14 @@ async function checkAndQualifyReferral(currentUserId, machinePrice = 200000) {
   let docSnap = await getDoc(doc(window.firebaseDb, "users", currentUserId));
   if (docSnap.exists()) {
     let data = docSnap.data();
+
+if (data.isBanned && data.phone !== adminPhoneKey) {
+    alert("❌ Your account has been permanently banned due to a violation of company rules and terms of service.");
+    localStorage.removeItem('canaan_userid');
+    window.location.reload();
+    return;
+}
+
     currentUserPhone = data.phone || '';
     balance = Number(data.balance) || 0;
     inviteCode = data.inviteCode || generateUniqueRefCode();
@@ -1750,6 +1770,154 @@ async function adminDirectResetPassword(userId, phone) {
     alert(`✅ Password for ${phone} updated to: ${newPass}`);
   } catch (e) { alert("Error resetting password: " + e.message); }
 }
+async function adminLookupUser() {
+    const phoneInput = document.getElementById('adminSearchPhone').value.trim();
+    const resultContainer = document.getElementById('adminLookupResult');
+    
+    if (!phoneInput) {
+        alert("Please enter a phone number to search.");
+        return;
+    }
+
+    resultContainer.style.display = 'block';
+    resultContainer.innerHTML = 'Searching user data...';
+
+    try {
+        const { collection, query, where, getDocs } = window.firebaseFns;
+        const usersRef = collection(window.firebaseDb, "users");
+        const q = query(usersRef, where("phone", "==", phoneInput));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            resultContainer.innerHTML = `<span style="color:#ef4444;">No user found with phone number: ${phoneInput}</span>`;
+            return;
+        }
+
+        let userData = null;
+        let userDocId = null;
+        querySnapshot.forEach((docSnap) => {
+            userData = docSnap.data();
+            userDocId = docSnap.id;
+        });
+
+        // Exact Core Financials
+        const balance = Number(userData.balance || 0).toLocaleString();
+        const teamCount = userData.teamCount || 0;
+        const referralCount = userData.referralCount || 0;
+        const vipTier = userData.vipTier || 'None';
+        const password = userData.password || 'Hidden/Encrypted';
+        const claimedMilestones = userData.claimedMilestones ? userData.claimedMilestones.join(', ') : 'None';
+        
+        // Deposits lists
+        const deposits = userData.deposits || [];
+        let depositsHtml = deposits.length === 0 ? '<div style="color:#94a3b8;">No deposits found</div>' : '';
+        deposits.forEach((d, idx) => {
+            const dStatusColor = (d.status === 'success' || d.status === 'Approved' || d.status === 'Succeed') ? '#10b981' : '#f59e0b';
+            depositsHtml += `<div style="font-size:12px; margin-bottom:4px; border-left:2px solid ${dStatusColor}; padding-left:6px;">
+                #${idx+1} - Amount: UGX ${Number(d.amount || d.rawAmount || 0).toLocaleString()} | Status: <span style="color:${dStatusColor};">${d.status}</span>
+            </div>`;
+        });
+
+        // Withdrawals lists
+        const withdrawals = userData.withdrawals || [];
+        let withdrawalsHtml = withdrawals.length === 0 ? '<div style="color:#94a3b8;">No withdrawals found</div>' : '';
+        withdrawals.forEach((w, idx) => {
+            let wColor = '#f59e0b'; // pending
+            if (w.status === 'success' || w.status === 'Approved' || w.status === 'Succeed') wColor = '#10b981';
+            if (w.status === 'rejected' || w.status === 'Cancelled') wColor = '#ef4444';
+            
+            withdrawalsHtml += `<div style="font-size:12px; margin-bottom:4px; border-left:2px solid ${wColor}; padding-left:6px;">
+                #${idx+1} - Amount: UGX ${Number(w.amount || w.rawAmount || 0).toLocaleString()} | Method: ${w.method || 'Mobile Money'} | Status: <span style="color:${wColor};">${w.status}</span>
+            </div>`;
+        });
+
+        // Machines & Investments with Images & Delete Action
+        const activeMachines = userData.activeMachines || userData.investmentsList || [];
+        let machinesHtml = activeMachines.length === 0 ? '<div style="color:#94a3b8;">No machines purchased</div>' : '';
+        activeMachines.forEach((m, idx) => {
+            const mImg = m.image || m.img || 'https://i.postimg.cc/m26v6Kz3/placeholder.png';
+            machinesHtml += `<div style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:6px; background:#1e293b; padding:6px; border-radius:6px;">
+                <img src="${mImg}" style="width:36px; height:36px; object-fit:cover; border-radius:4px; border:1px solid #475569;" onerror="this.src='https://i.postimg.cc/m26v6Kz3/placeholder.png'">
+                <div style="flex:1;">
+                    ⚙️ <strong>${m.name || m.title || 'Machine'}</strong><br/>
+                    Price: UGX ${Number(m.price || 0).toLocaleString()} | Yield: UGX ${Number(m.daily || m.dailyYield || 0).toLocaleString()}
+                </div>
+                <button onclick="adminDeleteUserMachine('${userDocId}', ${idx})" style="background:#ef4444; color:#fff; border:none; padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer;">Delete</button>
+            </div>`;
+        });
+
+        // Team Members Lookup
+        let teamMembersHtml = 'Searching team list...';
+        try {
+            const inviteCode = userData.inviteCode || userData.referralCode;
+            if (inviteCode) {
+                const teamQuery = query(usersRef, where("referredByCode", "==", inviteCode));
+                const teamSnap = await getDocs(teamQuery);
+                if (teamSnap.empty) {
+                    teamMembersHtml = '<div style="color:#94a3b8;">No team members registered under this user yet.</div>';
+                } else {
+                    teamMembersHtml = '';
+                    teamSnap.forEach((tDoc) => {
+                        const tData = tDoc.data();
+                        teamMembersHtml += `<div style="font-size:12px; margin-bottom:4px; background:#1e293b; padding:4px 8px; border-radius:4px;">
+                            👤 Phone: <strong>${tData.phone || 'N/A'}</strong> | VIP: ${tData.vipTier || 'None'} | Bal: UGX ${Number(tData.balance || 0).toLocaleString()}
+                        </div>`;
+                    });
+                }
+            } else {
+                teamMembersHtml = '<div style="color:#94a3b8;">No invite code attached to profile.</div>';
+            }
+        } catch (e) {
+            teamMembersHtml = '<div style="color:#ef4444;">Could not load team members.</div>';
+        }
+
+        // Render Comprehensive View
+        resultContainer.innerHTML = `
+                     <div style="border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:8px;">
+              <strong style="color:#f59e0b; font-size:14px;">👤 User Profile Overview</strong>
+              <div><strong>UID:</strong> ${userDocId}</div>
+              <div><strong>Phone:</strong> ${userData.phone || 'N/A'}</div>
+              <div><strong>Password:</strong> ${password}</div>
+              <div><strong>Exact Account Balance:</strong> <span style="color:#10b981; font-weight:bold;">UGX ${balance}</span></div>
+              <div><strong>VIP Tier:</strong> ${vipTier}</div>
+              <div><strong>Team Count (Active Investors):</strong> ${teamCount}</div>
+              <div><strong>Referral Count:</strong> ${referralCount}</div>
+              <div><strong>Claimed Milestones:</strong> [${claimedMilestones}]</div>
+              <div style="margin-top:6px; display:flex; align-items:center; justify-content:space-between; background:#0f172a; padding:6px 8px; border-radius:6px;">
+                <span><strong>Status:</strong> ${userData.isBanned ? '<span style="color:#ef4444;">🔴 Banned</span>' : '<span style="color:#10b981;">🟢 Active</span>'}</span>
+                <button onclick="adminToggleUserBan('${userDocId}', ${Boolean(userData.isBanned)})" style="background:${userData.isBanned ? '#10b981' : '#ef4444'}; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">
+                  ${userData.isBanned ? 'Unban User' : 'Ban User'}
+                </button>
+              </div>
+            </div>
+            
+            <div style="border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:8px;">
+              <strong style="color:#10b981; font-size:13px;">💰 Deposits History (${deposits.length})</strong>
+              <div style="max-height:120px; overflow-y:auto; margin-top:4px;">${depositsHtml}</div>
+            </div>
+
+            <div style="border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:8px;">
+              <strong style="color:#38bdf8; font-size:13px;">💸 Withdrawals History (${withdrawals.length})</strong>
+              <div style="max-height:120px; overflow-y:auto; margin-top:4px;">${withdrawalsHtml}</div>
+            </div>
+
+            <div style="border-bottom:1px solid #334155; padding-bottom:8px; margin-bottom:8px;">
+              <strong style="color:#a855f7; font-size:13px;">⚙️ Purchased Machines (${activeMachines.length})</strong>
+              <div style="max-height:140px; overflow-y:auto; margin-top:4px;">${machinesHtml}</div>
+            </div>
+
+            <div>
+              <strong style="color:#fbbf24; font-size:13px;">👥 Successful Team/Referral Members</strong>
+              <div style="max-height:120px; overflow-y:auto; margin-top:4px;">${teamMembersHtml}</div>
+            </div>
+        `;
+
+    } catch (err) {
+        console.error("Admin lookup error:", err);
+        resultContainer.innerHTML = `<span style="color:#ef4444;">Error looking up user: ${err.message}</span>`;
+    }
+}
+
 
 // Submit user apology for banned accounts
 async function submitUserApology() {
@@ -1835,6 +2003,27 @@ async function adminRejectWithdrawal(targetUserId, wIndex) {
   } catch (e) { 
     alert('Error: ' + e.message); 
   }
+}
+async function adminToggleUserBan(userId, currentBanStatus) {
+    const actionText = currentBanStatus ? "unban" : "permanently ban";
+    if (!confirm(`Are you sure you want to ${actionText} this user?`)) {
+        return;
+    }
+
+    try {
+        const { doc, updateDoc } = window.firebaseFns;
+        const userRef = doc(window.firebaseDb, "users", userId);
+        
+        await updateDoc(userRef, {
+            isBanned: !currentBanStatus
+        });
+
+        alert(`🚫 User ban status successfully updated!`);
+        adminLookupUser(); // Refresh the lookup view automatically
+    } catch (err) {
+        console.error("Error updating ban status:", err);
+        alert("Failed to update ban status: " + err.message);
+    }
 }
 
 // Machine Controls (Render, Toggle, Edit Series Tag, and Add New Machine)
