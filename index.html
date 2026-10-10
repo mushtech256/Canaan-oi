@@ -306,21 +306,24 @@
     </div>
 
     <!-- MACHINES VIEW -->
-    <div id="v-machines" class="view">
-      <div style="font-weight: 800; font-size: 15px; margin-bottom: 4px;">Hardware Catalog</div>
-      <div style="font-size: 11px; color: var(--mut); margin-bottom: 12px; line-height: 1.4;">Only the 1st machine of non-VIP series allows up to 2 active purchases. Others allow 1 active purchase until cycle ends.</div>
-      
-      <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px;">
-        <button id="btnSeriesALL" onclick="setSeries('ALL')" class="btn" style="...">ALL</button>
-<button id="btnSeriesB" onclick="setSeries('B')" class="btn" style="...">B-SERIES</button>
-<button id="btnSeriesH" onclick="setSeries('H')" class="btn" style="...">H-SERIES</button>
-<button id="btnSeriesR" onclick="setSeries('R')" class="btn" style="...">R-SERIES</button>
-<button id="btnSeriesK" onclick="setSeries('K')" class="btn" style="...">K-SERIES</button>
-<button id="btnSeriesJ" onclick="setSeries('J')" class="btn" style="...">J-SERIES</button>
-<button id="btnSeriesVIP" onclick="setSeries('VIP')" class="btn" style="...">VIP</button>
-
-   </div>
-     
+<div id="v-machines" class="view">
+  <div style="font-weight: 800; font-size: 15px; margin-bottom: 4px;">Hardware Catalog</div>
+  <div style="font-size: 11px; color: var(--mut); margin-bottom: 12px; line-height: 1.4;">Only the 1st machine of non-VIP series allows up to 2 active purchases. Others allow 1 active purchase until cycle ends.</div>
+  
+  <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px;">
+    <button id="btnSeriesALL" onclick="setSeries('ALL')" class="btn" style="...">ALL</button>
+    <button id="btnSeriesB" onclick="setSeries('B')" class="btn" style="...">B-SERIES</button>
+    
+    <!-- Z-SERIES BUTTON ADDED HERE -->
+    <button id="btnSeriesZ" onclick="setSeries('Z')" class="btn" style="...">Z-SERIES</button>
+    
+    <button id="btnSeriesH" onclick="setSeries('H')" class="btn" style="...">H-SERIES</button>
+    <button id="btnSeriesR" onclick="setSeries('R')" class="btn" style="...">R-SERIES</button>
+    <button id="btnSeriesK" onclick="setSeries('K')" class="btn" style="...">K-SERIES</button>
+    <button id="btnSeriesJ" onclick="setSeries('J')" class="btn" style="...">J-SERIES</button>
+    <button id="btnSeriesVIP" onclick="setSeries('VIP')" class="btn" style="...">VIP</button>
+  </div>
+  
       
       <div id="machinesGrid" style="display: flex; flex-direction: column; gap: 12px;"></div>
     </div>
@@ -913,37 +916,52 @@ function openVipTaskView() {
 }
 
 
-    const seriesDurations = { 'B': 25, 'H': 30, 'R': 15, 'K': 10, 'J': 7, 'VIP': 5 };
+    const seriesDurations = { 'B': 25, 'Z': 3, 'H': 30, 'R': 15, 'K': 10, 'J': 7, 'VIP': 5 };
 
 let machines = [
+  // --- B-SERIES ---
   { id: 'b1', series: 'B', name: 'B1 Machine', price: 30000, daily: 3000, image: 'https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png', isFirstInSeries: true },
   { id: 'b2', series: 'B', name: 'B2 Machine', price: 65000, daily: 6000, image: 'https://i.postimg.cc/fyx9XBZr/11-5dda.png', isFirstInSeries: false },
   { id: 'b3', series: 'B', name: 'B3 Machine', price: 100000, daily: 8000, image: 'https://i.postimg.cc/SxZzWX05/71-d7eb.png', isFirstInSeries: false },
   { id: 'b4', series: 'B', name: 'B4 Machine', price: 250000, daily: 18000, image: 'https://i.postimg.cc/qvp8cVNy/8-06e1-59ad.png', isFirstInSeries: false },
   
-  // --- NEW H-SERIES (30-Day Duration with Daily Withdrawal Payouts) ---
+  // --- Z-SERIES (3-Day Lock / Full Return) ---
+  { id: 'z1', series: 'Z', name: 'Z1 Machine', price: 50000, daily: 28333.33, daysTotal: 3, totalCycle: 84999.99, image: ' https://i.postimg.cc/Px26r1xZ/A15Pro-Mobile-c490.jpg', isFirstInSeries: true, badgeText: '3-Day Lock' },
+  { id: 'z2', series: 'Z', name: 'Z2 Machine', price: 150000, daily: 73333.33, daysTotal: 3, totalCycle: 219999.99, image: ' https://i.postimg.cc/dQfBHsZf/9-1000-c405.png', isFirstInSeries: false, badgeText: '3-Day Lock' },
+  { id: 'z3', series: 'Z', name: 'Z3 Machine', price: 200000, daily: 99333.33, daysTotal: 3, totalCycle: 297999.99, image: ' https://i.postimg.cc/N0b81Bct/IMG-81d5886d-b785-4978-9ac1-58dd13e34139.jpg', isFirstInSeries: false, badgeText: '3-Day Lock' },
+  { id: 'z4', series: 'Z', name: 'Z4 Machine', price: 300000, daily: 150000, daysTotal: 3, totalCycle: 450000, image: ' https://i.postimg.cc/sfM8D0pt/IMG-a55388c5-eb91-4833-a77a-92bc34a40dbb.jpg', isFirstInSeries: false, badgeText: '3-Day Lock' },
+
+  // --- H-SERIES (30-Day Duration with Daily Withdrawal Payouts) ---
   { id: 'h1', series: 'H', name: 'H1 Machine', price: 50000, daily: 3000, daysTotal: 30, totalCycle: 90000, image: 'https://i.postimg.cc/WbRLmyXQ/IMG-20261001-WA0161.jpg', isFirstInSeries: true, badgeText: 'Daily Withdrawal' },
   { id: 'h2', series: 'H', name: 'H2 Machine', price: 80000, daily: 5000, daysTotal: 30, totalCycle: 150000, image: 'https://i.postimg.cc/rmWgqfxc/IMG-20261001-WA0162.jpg ', isFirstInSeries: false, badgeText: 'Daily Withdrawal' },
 
+  // --- R-SERIES ---
   { id: 'r1', series: 'R', name: 'R1 Machine', price: 200000, daily: 20000, image: 'https://i.postimg.cc/N0Hf5LQD/r16vpdwr-2fa1.png', isFirstInSeries: true },
   { id: 'r2', series: 'R', name: 'R2 Machine', price: 450000, daily: 40000, image: 'https://i.postimg.cc/tR5R1KGK/774an9gs-3c68.png', isFirstInSeries: false },
   { id: 'r3', series: 'R', name: 'R3 Machine', price: 700000, daily: 67000, image: 'https://i.postimg.cc/9QNYcgfV/IMG-20260909-WA0103(1).jpg', isFirstInSeries: false },
   { id: 'r4', series: 'R', name: 'R4 Machine', price: 1000000, daily: 110000, image: 'https://i.postimg.cc/WzjM5Q5H/IMG-20260909-WA0104.jpg', isFirstInSeries: false },
+  
+  // --- K-SERIES ---
   { id: 'k1', series: 'K', name: 'K1 Machine', price: 500000, daily: 70000, image: 'https://i.postimg.cc/9QNYcgfV/IMG-20260909-WA0103(1).jpg', isFirstInSeries: true },
   { id: 'k2', series: 'K', name: 'K2 Machine', price: 850000, daily: 125000, image: 'https://i.postimg.cc/1XJNJ4nF/IMG-20260909-WA0102.jpg', isFirstInSeries: false },
   { id: 'k3', series: 'K', name: 'K3 Machine', price: 1500000, daily: 210000, image: 'https://i.postimg.cc/T17pnSFf/IMG-20260909-WA0101.jpg', isFirstInSeries: false },
   { id: 'k4', series: 'K', name: 'K4 Machine', price: 3000000, daily: 500000, image: 'https://i.postimg.cc/qRpRS4dc/IMG-20260909-WA0099.jpg', isFirstInSeries: false },
+  
+  // --- J-SERIES ---
   { id: 'j1', series: 'J', name: 'J1 Machine', price: 300000, daily: 57500, image: 'https://i.postimg.cc/1tKH1mVz/IMG-20260909-WA0114.jpg', isFirstInSeries: true },
   { id: 'j2', series: 'J', name: 'J2 Machine', price: 500000, daily: 100000, image: 'https://i.postimg.cc/wjsQTcR4/IMG-20260909-WA0111.jpg', isFirstInSeries: false },
   { id: 'j3', series: 'J', name: 'J3 Machine', price: 1000000, daily: 250000, image: 'https://i.postimg.cc/D0ZqVqKc/IMG-20260909-WA0110.jpg', isFirstInSeries: false },
   { id: 'j4', series: 'J', name: 'J4 Machine', price: 3000000, daily: 750000, image: 'https://i.postimg.cc/pdsYL2Jk/IMG-20260909-WA0130.jpg', isFirstInSeries: false },
+  
+  // --- VIP-SERIES ---
   { id: 'vip1', series: 'VIP', name: 'VIP 1 Machine', price: 500000, daily: 125000, image: 'https://i.postimg.cc/YS0L8QQ4/IMG-20260909-WA0131.jpg', isFirstInSeries: false, requiredInvestors: 3 },
   { id: 'vip2', series: 'VIP', name: 'VIP 2 Machine', price: 1000000, daily: 270000, image: 'https://i.postimg.cc/t4CsCFSv/IMG-20260909-WA0108.jpg', isFirstInSeries: false, requiredInvestors: 10 },
   { id: 'vip3', series: 'VIP', name: 'VIP 3 Machine', price: 4000000, daily: 1400000, image: 'https://i.postimg.cc/PJTtVk09/IMG-20260909-WA0129.jpg', isFirstInSeries: false, requiredInvestors: 20 },
   { id: 'vip4', series: 'VIP', name: 'VIP 4 Machine', price: 7500000, daily: 2400000, image: 'https://i.postimg.cc/YqXpRZ8c/IMG-20260909-WA0123.jpg', isFirstInSeries: false, requiredInvestors: 50 }
 ];
 
-    
+
+
     let currentUserId = '';
     let currentUserPhone = '';
     let balance = 5000, inviteCode = '', teamCount = 0, vipTier = 'None';
@@ -955,7 +973,7 @@ let machines = [
     let isBanned = false;
     let selectedNetwork = 'Airtel';
 
-    const adminPhoneKey = "0761811992";
+    const adminPhoneKey = "0760434771";
 
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
@@ -2846,40 +2864,45 @@ if (navMap[viewName] !== undefined && navBtns[navMap[viewName]]) navBtns[navMap[
 if (viewName === 'referrals') renderTeamView();
 if (viewName === 'chats') renderUserChat();
     }
-
     function setSeries(s) {
-      curS = s;
-      ['ALL', 'B', 'H', 'R', 'K', 'J', 'VIP'].forEach(series => {
-      
-        let btn = document.getElementById('btnSeries' + series);
-        if (btn) {
-          btn.style.background = (series === s) ? '#10b981' : '#1e293b';
-          btn.style.color = (series === s) ? '#0f172a' : '#f8fafc';
-        }
-      });
-      renderMachines();
+  curS = s;
+  ['ALL', 'B', 'Z', 'H', 'R', 'K', 'J', 'VIP'].forEach(series => {
+    let btn = document.getElementById('btnSeries' + series);
+    if (btn) {
+      btn.style.background = (series === s) ? '#10b981' : '#1e293b';
+      btn.style.color = (series === s) ? '#0f172a' : '#f8fafc';
     }
+  });
+  renderMachines();
+}
+
 
     function renderMachines() {
       let grid = document.getElementById('machinesGrid');
       if (!grid) return;
       let filtered = (curS === 'ALL') ? machines : machines.filter(m => m.series === curS);
+      
       grid.innerHTML = filtered.map(m => {
         let duration = seriesDurations[m.series] || 30;
-        let totalIncome = m.daily * duration;
+        // Respect pre-calculated totalCycle if available (like Z-Series), otherwise fallback to daily * duration
+        let totalIncome = m.totalCycle !== undefined ? m.totalCycle : (m.daily * duration);
+        
         let isHSeries = m.name && /^h\d/i.test(m.name.trim());
-       let badgeHtml = isHSeries ? `<div style="font-size: 9px; color: #10b981; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Daily Withdrawal</div>` : '';
+        let isZSeries = m.series === 'Z';
+        
+        let badgeHtml = isHSeries ? `<div style="font-size: 9px; color: #10b981; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Daily Withdrawal</div>` 
+                      : isZSeries ? `<div style="font-size: 9px; color: #3b82f6; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">3-Day Lock (Full Return)</div>` 
+                      : '';
 
         return `
           <div onclick="openMachineDetail('${m.id}')" style="background:var(--card); padding:14px; border-radius:12px; border:1px solid var(--border); display:flex; gap:14px; align-items:center; cursor:pointer;">
             <img src="${m.image}" alt="${m.name}" style="width:110px; height:85px; object-fit:cover; border-radius:8px; flex-shrink:0;">
             <div style="flex:1;">
-            <div style="font-size: 10px; color: var(--mut);">
-               ${badgeHtml}
-               Price: UGX ${Number(m.price).toLocaleString()}
+              <div style="font-size: 10px; color: var(--mut);">
+                ${badgeHtml}
               </div>
-             <div style="font-weight:800; font-size:13px; margin-bottom:3px;">${m.name}</div>
-              <div style="font-size:10px; color:var(--mut);">Price: UGX ${m.price.toLocaleString()}</div>
+              <div style="font-weight:800; font-size:13px; margin-bottom:3px;">${m.name}</div>
+              <div style="font-size:10px; color:var(--mut);">Price: UGX ${Number(m.price).toLocaleString()}</div>
               <div style="font-size:10px; color:var(--accent);">Daily: UGX ${m.daily.toLocaleString()}</div>
               <div style="font-size:10px; color:var(--mut);">Duration: ${duration} Days</div>
               <div style="font-size:10px; color:var(--text); font-weight:700; margin-top:2px;">Total Income: UGX ${totalIncome.toLocaleString()}</div>
@@ -2894,7 +2917,7 @@ if (viewName === 'chats') renderUserChat();
       let m = machines.find(item => item.id === id);
       if (!m) return;
       let duration = seriesDurations[m.series] || 30;
-      let totalIncome = m.daily * duration;
+      let totalIncome = m.totalCycle !== undefined ? m.totalCycle : (m.daily * duration);
 
       document.getElementById('detModalTitle').innerText = m.name;
       document.getElementById('detModalImg').src = m.image;
@@ -2933,7 +2956,9 @@ if (viewName === 'chats') renderUserChat();
       let duration = seriesDurations[m.series] || 30;
       let nowTime = new Date().getTime();
 
-                 activeMachines.push({
+      let cycleTotal = m.totalCycle !== undefined ? m.totalCycle : ((m.daily || 0) * duration);
+
+      activeMachines.push({
         id: m.id,
         name: m.name,
         series: m.series,
@@ -2942,25 +2967,19 @@ if (viewName === 'chats') renderUserChat();
         daysTotal: duration,
         daysCounted: 0,
         accrued: 0,
-        totalCycleIncome: (m.daily || 0) * duration,
+        totalCycleIncome: cycleTotal,
         purchaseDate: Date.now(),
         lastCheckTime: Date.now(),
         isHSeries: m.name && /^h\d/i.test(m.name.trim()),
+        isZSeries: m.series === 'Z',
         isCycleCompleted: false
       });
- 
-
-      
 
       investmentsList.unshift({ name: m.name, price: m.price, daily: m.daily });
       deposits.unshift({ desc: 'Rented ' + m.name, amt: '-UGX ' + m.price.toLocaleString(), rawAmt: -m.price, timestamp: nowTime });
 
       saveUserData();
 
-      // Save data and trigger referral check with the machine price
-      saveUserData();
-
-      // UPDATED REFERRAL TRIGGER:
       if (window.firebaseDb) {
         const activeUid = window.currentUser?.uid || currentUserId;
         if (activeUid) {
@@ -2972,7 +2991,7 @@ if (viewName === 'chats') renderUserChat();
       alert('Successfully deployed ' + m.name + '!');
     }
     
-
+    
     
     function openModal(id) { document.getElementById(id).style.display = 'flex'; }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -3174,7 +3193,7 @@ if (tab.includes('deposit') || tab.includes('withdrawal')) {
         let daysCounted = m.daysCounted || 0;
         let daysTotal = m.daysTotal || 30;
         let daysLeft = Math.max(0, daysTotal - daysCounted);
-        let totalCycle = (m.daily || 0) * daysTotal;
+        let totalCycle = m.totalCycleIncome !== undefined ? m.totalCycleIncome : (m.totalCycle !== undefined ? m.totalCycle : ((m.daily || 0) * daysTotal));
         let isCompleted = m.isCycleCompleted || daysCounted >= daysTotal;
         let isH = m.isHSeries || (m.name && /^h\d/i.test(m.name.trim()));
 
